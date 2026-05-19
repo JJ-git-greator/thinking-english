@@ -41,10 +41,10 @@ export default async function ReviewPage({ params }: { params: { sid: string } }
         >
           ← 카테고리
         </Link>
-        <h1 className="text-2xl font-bold mt-2">채점 결과 + 오답 교정</h1>
+        <h1 className="text-2xl font-bold mt-2">채점 결과 + 오답 정리</h1>
         <p className="text-gray-600 mt-1 text-sm">
-          오답은 그냥 넘기지 마세요. <b>왜 틀렸는지 한 줄 적어야</b> 다음 묶음으로
-          넘어갈 수 있습니다. 사고력 훈련의 핵심이에요.
+          오답을 그냥 넘기지 마세요. <b>왜 틀렸는지 한 줄 적어야</b> 다음 묶음으로
+          넘어갑니다. 이 정리가 곧 다음 풀이의 정답률을 만듭니다.
         </p>
       </div>
 

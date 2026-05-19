@@ -27,8 +27,8 @@ const TOPIC_LABELS: Record<QuestionTopic, { title: string; desc: string; color: 
     color: "border-emerald-300 bg-emerald-50",
   },
   grammar: {
-    title: "어법 (Structure)",
-    desc: "주어→단복수·시제·태 시퀀스 (Phase 3 예정)",
+    title: "어법",
+    desc: "주어·동사 일치, 시제, 태를 단계로 점검 (준비 중)",
     color: "border-gray-200 bg-gray-50",
   },
 };
@@ -82,29 +82,30 @@ export default async function QuizHomePage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">10문제 컷팅 학습</h1>
+        <h1 className="text-3xl font-bold">10문제 단위 학습</h1>
         <p className="text-gray-500 mt-2">
-          10문제씩 푼 다음 즉시 채점, 오답에 근거를 채워야 다음 묶음으로 넘어갑니다.
-          문제 양치기가 아니라 <b>사고력 교정</b>이 목적이에요.
+          10문제씩 풀고 바로 채점합니다. 오답에는 <b>왜 그렇게 골랐는지 한 줄</b>을
+          남겨야 다음 묶음으로 넘어갑니다. 문제 수를 채우는 학습이 아니라,
+          <b> 한 문제마다 사고를 점검</b>하는 학습이에요.
         </p>
       </div>
 
       <div className="bg-white border rounded-lg px-5 py-3 text-sm text-gray-600 flex items-center gap-3">
-        <span>학생 레벨:</span>
+        <span>현재 단계:</span>
         <span className="font-semibold text-gray-900">
           {level ? LEVEL_LABELS[level] : "미설정 (기본 중)"}
         </span>
-        <span className="text-xs text-gray-400">— 원장이 부여한 단계에 따라 카테고리가 잠겨요</span>
+        <span className="text-xs text-gray-400">— 단계에 따라 풀 수 있는 카테고리가 달라집니다</span>
       </div>
 
       {err === "topic_locked" && (
         <div className="text-sm bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-900">
-          잠긴 카테고리는 시작할 수 없습니다. 다른 카테고리부터 풀어 주세요.
+          지금 단계에서는 열려 있지 않은 카테고리예요. 다른 카테고리부터 풀어 주세요.
         </div>
       )}
       {err === "no_questions" && (
         <div className="text-sm bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-900">
-          이 레벨에서 풀 수 있는 문제가 충분하지 않습니다. 원장에게 문제 추가를 요청하세요.
+          현재 단계에서 풀 수 있는 문제가 부족합니다. 선생님께 문제 추가를 요청하세요.
         </div>
       )}
 

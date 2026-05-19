@@ -82,38 +82,37 @@ export default function StructureWorkspace({
       </div>
 
       <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 text-sm space-y-2">
-        <div className="font-semibold text-sky-800">메모 가이드</div>
+        <div className="font-semibold text-sky-800">무엇을 적으면 되나요</div>
         <ul className="text-gray-700 space-y-1 list-disc ml-5">
           <li>
-            <b>주어 찾기</b>: 첫 번째 전치사구 건너뛰고 첫 명사. 도치 구문도 이
-            규칙 하나로.
+            <b>주어가 무엇인지</b> — 첫 명사를 찾고, 그 명사가 단수인지 복수인지.
           </li>
           <li>
-            <b>동사 시퀀스</b>: 단복수 → 시제 → 태(능동·수동) 3단계 체크.
+            <b>동사의 형태</b> — 주어와 일치하는지, 시제와 능동/수동이 자연스러운지.
           </li>
           <li>
-            <b>골든룰</b>: 한 문장에 주어 1개 → 동사 1개. 동사 추가는 to부정사
-            등 Structure로.
+            <b>문장이 어떻게 늘어났는지</b> — 한 문장에 의미가 더 붙어 있다면 어떤
+            구조(to부정사·관계절·접속사 등)로 늘어났는지.
           </li>
           <li>
-            메인 아이디어를 만드는 핵심 구조가 보이면 그 문장을 짧게 인용하고
-            "왜 이 구조인지" 한 줄 적어보세요.
+            메인 아이디어를 만드는 핵심 문장을 짧게 인용하고, 그 문장의 구조에서
+            <b> 의미가 어떻게 만들어지는지</b> 한 줄로 적어보세요.
           </li>
         </ul>
       </div>
 
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
-          이 단락의 Structure 메모 (한국어 OK, 10자 이상)
+          이 단락의 구조 메모 (한국어로 적어도 OK, 10자 이상)
         </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={8}
           placeholder={`예:
-- 메인 문장 주어: "this hidden cost" (단수). 동사 "matters" 단수 일치 OK.
-- 두 번째 문장: "tries to study"가 골든룰 (to부정사로 동사 추가)
-- 마지막 문장 도치 없음, 평범한 주어+동사+목적어 구조`}
+- 메인 문장 주어는 "this hidden cost" (단수), 동사 "matters"가 단수 일치
+- 두 번째 문장은 "tries to study"처럼 to부정사로 의미가 한 번 더 늘어남
+- 마지막 문장은 도치 없이 주어+동사+목적어로 평범하게 흐름`}
           className="w-full px-4 py-3 border rounded-lg leading-relaxed font-mono text-sm"
           maxLength={3000}
         />

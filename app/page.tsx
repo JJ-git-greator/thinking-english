@@ -9,7 +9,7 @@ export default function Home() {
             Thinking <span className="text-brand-600">English</span>
           </h1>
           <p className="text-xl text-gray-600">
-            메모라이징을 넘어 사고력 영어로
+            암기를 넘어, 생각하면서 읽는 영어
           </p>
         </div>
 

@@ -26,7 +26,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
                 지문 학습
               </Link>
               <Link href="/learn/quiz" className="hover:text-gray-900">
-                10문제 컷팅
+                10문제 단위
               </Link>
             </nav>
           </div>

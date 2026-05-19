@@ -47,10 +47,10 @@ export default async function PlayPage({ params }: { params: { sid: string } }) 
         >
           ← 카테고리
         </Link>
-        <h1 className="text-2xl font-bold mt-2">10문제 컷팅 학습</h1>
+        <h1 className="text-2xl font-bold mt-2">10문제 단위 학습</h1>
         <p className="text-gray-600 mt-1 text-sm">
-          답을 고르고 <b>왜 그 답을 골랐는지 근거를 한 줄</b>로 적어주세요. 10문제
-          다 풀면 즉시 채점 + 오답 교정으로 넘어갑니다.
+          답을 고른 다음 <b>왜 그 답을 골랐는지 한 줄</b> 남겨주세요. 10문제를
+          다 풀면 바로 채점되고, 오답이 있으면 오답 정리 단계로 이어집니다.
         </p>
         <div className="text-sm text-gray-500 mt-2">
           진행: {answered} / {total}

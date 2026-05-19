@@ -40,8 +40,8 @@ export default function LevelEditor({ studentId, initial }: Props) {
       <div>
         <h3 className="font-semibold text-gray-900">학생 레벨</h3>
         <p className="text-sm text-gray-500 mt-1">
-          레벨에 따라 학생이 풀 수 있는 문제 카테고리·난이도가 자동으로 잠깁니다.
-          (강의 라인 549~676: "4등급 학생은 30번 안쪽만")
+          현재 단계에 맞는 카테고리·난이도만 노출됩니다. 핵심 메시지부터
+          안정시키고 단계적으로 어려운 유형을 풉니다.
         </p>
       </div>
 
@@ -70,7 +70,7 @@ export default function LevelEditor({ studentId, initial }: Props) {
 
       <div className="text-xs text-gray-600 space-y-0.5">
         <p>
-          <b>하</b>: 주제 찾기만 (지스트 30번 안쪽 정신)
+          <b>하</b>: 핵심 메시지 찾기에 집중 (쉬운 유형 위주)
         </p>
         <p>
           <b>중</b>: 주제 + 어휘
