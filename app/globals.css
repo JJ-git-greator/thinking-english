@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: #1f2937;
+  --background: #fafaf9;
+}
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Gist editor highlighting */
+.gist-main {
+  background-color: rgba(252, 211, 77, 0.55);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+.gist-support {
+  text-decoration: underline;
+  text-decoration-color: #2563eb;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.sentence {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.sentence:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
