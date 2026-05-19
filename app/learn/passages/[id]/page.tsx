@@ -27,15 +27,23 @@ export default async function PassageDetailPage({
 
   const { data: gistNotes } = await supabase
     .from("te_gist_notes")
-    .select("paragraph_id, main_idea_text, supporting_text")
+    .select(
+      "paragraph_id, main_idea_text, supporting_text, structure_notes, structure_done_at",
+    )
     .eq("user_id", userId)
     .in("paragraph_id", paragraphIds);
 
-  const notesByPara = new Map<string, { hasMain: boolean; hasSupport: boolean }>();
+  const notesByPara = new Map<
+    string,
+    {
+      hasGist: boolean;
+      hasStructure: boolean;
+    }
+  >();
   for (const n of gistNotes ?? []) {
     notesByPara.set(n.paragraph_id, {
-      hasMain: !!n.main_idea_text,
-      hasSupport: !!n.supporting_text,
+      hasGist: !!n.main_idea_text && !!n.supporting_text,
+      hasStructure: !!n.structure_done_at,
     });
   }
 
@@ -53,6 +61,12 @@ export default async function PassageDetailPage({
     }
   }
 
+  // 지문 전체 회독 진척 계산
+  const totalPara = te_paragraphs.length || 1;
+  const pass1Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasGist).length;
+  const pass2Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasStructure).length;
+  const pass3Done = te_paragraphs.filter((p: any) => lastAttemptByPara.has(p.id)).length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,10 +82,24 @@ export default async function PassageDetailPage({
         </p>
       </div>
 
+      {/* 3회독 진척 요약 */}
+      <div className="bg-white border rounded-lg p-5">
+        <div className="text-sm font-medium text-gray-700 mb-3">3회독 진척</div>
+        <div className="grid grid-cols-3 gap-3">
+          <RoundCell label="1회독 · Gist" done={pass1Done} total={totalPara} color="bg-amber-500" />
+          <RoundCell label="2회독 · Structure" done={pass2Done} total={totalPara} color="bg-sky-500" />
+          <RoundCell label="3회독 · 재구성" done={pass3Done} total={totalPara} color="bg-blue-600" />
+        </div>
+      </div>
+
       <div className="space-y-3">
         {te_paragraphs.map((p: any, i: number) => {
           const note = notesByPara.get(p.id);
+          const hasGist = note?.hasGist ?? false;
+          const hasStructure = note?.hasStructure ?? false;
           const score = lastAttemptByPara.get(p.id);
+          const hasRecon = typeof score === "number";
+
           return (
             <div key={p.id} className="bg-white border rounded-lg p-5">
               <div className="flex items-center justify-between mb-3">
@@ -79,30 +107,43 @@ export default async function PassageDetailPage({
                   <span className="text-sm font-medium text-gray-500">
                     단락 {i + 1}
                   </span>
-                  {note?.hasMain && note?.hasSupport && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-800">
-                      Gist 완료
-                    </span>
-                  )}
-                  {typeof score === "number" && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                      재구성 {score}점
-                    </span>
-                  )}
+                  <StepBadge label="Gist" done={hasGist} color="amber" />
+                  <StepBadge label="Structure" done={hasStructure} color="sky" />
+                  <StepBadge
+                    label={hasRecon ? `재구성 ${score}점` : "재구성"}
+                    done={hasRecon}
+                    color="blue"
+                  />
                 </div>
                 <div className="flex gap-2">
                   <Link
                     href={`/learn/paragraphs/${p.id}/gist`}
-                    className="text-sm px-3 py-1.5 rounded-md bg-brand-600 text-white hover:bg-brand-700"
+                    className={`text-sm px-3 py-1.5 rounded-md text-white ${
+                      hasGist
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : "bg-brand-600 hover:bg-brand-700"
+                    }`}
                   >
-                    {note?.hasMain && note?.hasSupport ? "Gist 다시 보기" : "Gist 시작"}
+                    {hasGist ? "1회독 다시" : "1회독 시작"}
                   </Link>
-                  {note?.hasMain && note?.hasSupport && (
+                  {hasGist && (
+                    <Link
+                      href={`/learn/paragraphs/${p.id}/structure`}
+                      className={`text-sm px-3 py-1.5 rounded-md text-white ${
+                        hasStructure
+                          ? "bg-sky-500 hover:bg-sky-600"
+                          : "bg-sky-600 hover:bg-sky-700"
+                      }`}
+                    >
+                      {hasStructure ? "2회독 다시" : "2회독"}
+                    </Link>
+                  )}
+                  {hasGist && (
                     <Link
                       href={`/learn/paragraphs/${p.id}/reconstruct`}
                       className="text-sm px-3 py-1.5 rounded-md bg-accent-600 text-white hover:bg-accent-500"
                     >
-                      재구성
+                      {hasRecon ? "3회독 다시" : "3회독"}
                     </Link>
                   )}
                 </div>
@@ -113,5 +154,56 @@ export default async function PassageDetailPage({
         })}
       </div>
     </div>
+  );
+}
+
+function RoundCell({
+  label,
+  done,
+  total,
+  color,
+}: {
+  label: string;
+  done: number;
+  total: number;
+  color: string;
+}) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+        <span>{label}</span>
+        <span>
+          {done} / {total}
+        </span>
+      </div>
+      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function StepBadge({
+  label,
+  done,
+  color,
+}: {
+  label: string;
+  done: boolean;
+  color: "amber" | "sky" | "blue";
+}) {
+  const cls = done
+    ? color === "amber"
+      ? "bg-amber-100 text-amber-800"
+      : color === "sky"
+        ? "bg-sky-100 text-sky-800"
+        : "bg-blue-100 text-blue-800"
+    : "bg-gray-100 text-gray-400";
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>
+      {done ? "✓ " : ""}
+      {label}
+    </span>
   );
 }
