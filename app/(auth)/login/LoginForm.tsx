@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-type Tab = "academy" | "email";
+type Tab = "academy" | "b2c";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -13,8 +13,7 @@ export default function LoginForm() {
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("academy");
   const [inviteCode, setInviteCode] = useState("");
-  const [studentId, setStudentId] = useState("");
-  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,31 +26,32 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      let loginEmail = email;
-      if (tab === "academy") {
-        if (!inviteCode.trim() || !studentId.trim()) {
-          throw new Error("학원 코드와 학생 아이디를 입력해 주세요.");
-        }
-        const code = inviteCode.trim().toUpperCase();
-        loginEmail = `${studentId.trim().toLowerCase()}@${code.toLowerCase()}.academy.local`;
+      // 1) 이름 → 합성 이메일 조회
+      const lookup = await fetch("/api/auth/lookup-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: tab,
+          invite_code: tab === "academy" ? inviteCode : undefined,
+          display_name: displayName,
+        }),
+      });
+      const lookupData = await lookup.json();
+      if (!lookup.ok) {
+        throw new Error(lookupData.message || lookupData.error || "로그인 실패");
       }
 
+      // 2) 받은 이메일로 로그인
       const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
+        email: lookupData.email,
         password,
       });
 
       if (signInErr) {
-        if (signInErr.message.toLowerCase().includes("invalid")) {
-          throw new Error(
-            tab === "academy"
-              ? "학원 코드, 학생 아이디, 비밀번호 중 하나가 틀렸습니다."
-              : "이메일 또는 비밀번호가 틀렸습니다.",
-          );
-        }
-        throw signInErr;
+        throw new Error("비밀번호가 일치하지 않아요.");
       }
 
+      // 3) role 확인 후 라우팅
       const { data: userResp } = await supabase.auth.getUser();
       if (!userResp.user) {
         throw new Error("로그인 정보를 확인하지 못했습니다.");
@@ -61,12 +61,11 @@ export default function LoginForm() {
         .select("role")
         .eq("id", userResp.user.id)
         .maybeSingle();
-
       const role = profile?.role ?? "b2c";
       if (role === "director" || role === "instructor") {
         router.push("/academy/dashboard");
       } else {
-        router.push("/learn/passages");
+        router.push("/learn/review");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -76,13 +75,16 @@ export default function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-sm border p-8 space-y-6">
-        <h1 className="text-2xl font-bold">로그인</h1>
+    <main className="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-br from-amber-50 via-white to-blue-50">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">로그인</h1>
+          <p className="text-sm text-gray-500">이름과 비밀번호로 들어오세요.</p>
+        </div>
 
         {signedUp && (
           <div className="text-sm bg-brand-50 text-brand-700 border border-brand-200 rounded-md p-3">
-            가입이 완료되었습니다. 로그인하세요.
+            가입이 완료되었습니다. 같은 이름·비밀번호로 로그인하세요.
           </div>
         )}
 
@@ -90,73 +92,67 @@ export default function LoginForm() {
           <button
             type="button"
             onClick={() => setTab("academy")}
-            className={`py-2 rounded-md text-sm font-medium transition ${
-              tab === "academy" ? "bg-white shadow-sm" : "text-gray-600"
+            className={`py-2 rounded-md text-sm font-semibold transition ${
+              tab === "academy" ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
             }`}
           >
             학원생
           </button>
           <button
             type="button"
-            onClick={() => setTab("email")}
-            className={`py-2 rounded-md text-sm font-medium transition ${
-              tab === "email" ? "bg-white shadow-sm" : "text-gray-600"
+            onClick={() => setTab("b2c")}
+            className={`py-2 rounded-md text-sm font-semibold transition ${
+              tab === "b2c" ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
             }`}
           >
-            이메일 로그인
+            개인 학습자
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {tab === "academy" ? (
-            <>
-              <Field label="학원 코드">
-                <input
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="예: TEST01"
-                  className="w-full px-3 py-2 border rounded-md uppercase tracking-wider"
-                  required
-                />
-              </Field>
-              <Field label="학생 아이디">
-                <input
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="stu001"
-                  className="w-full px-3 py-2 border rounded-md"
-                  required
-                />
-              </Field>
-            </>
-          ) : (
-            <Field label="이메일">
+          {tab === "academy" && (
+            <Field label="학원 코드">
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="예: TEST01"
+                className="w-full px-3 py-2.5 border rounded-lg uppercase tracking-wider"
                 required
               />
             </Field>
           )}
+
+          <Field label="이름">
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="예: 김민지"
+              className="w-full px-3 py-2.5 border rounded-lg"
+              maxLength={40}
+              required
+            />
+          </Field>
 
           <Field label="비밀번호">
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2.5 border rounded-lg"
               required
             />
           </Field>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2.5">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-md bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-50 transition"
+            className="w-full py-3 rounded-lg bg-brand-600 text-white font-bold hover:bg-brand-700 disabled:opacity-50 transition"
           >
             {loading ? "처리 중..." : "로그인"}
           </button>
@@ -164,7 +160,7 @@ export default function LoginForm() {
 
         <p className="text-sm text-center text-gray-500">
           처음이세요?{" "}
-          <Link href="/signup" className="text-brand-600 hover:underline">
+          <Link href="/signup" className="text-brand-600 hover:underline font-medium">
             가입하기
           </Link>
         </p>
@@ -176,7 +172,7 @@ export default function LoginForm() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <span className="text-sm font-semibold text-gray-700">{label}</span>
       {children}
     </label>
   );
