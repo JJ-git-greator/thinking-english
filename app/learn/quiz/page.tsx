@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   allowedDifficulties,
+  allowedTopics,
   isTopicAllowed,
   lockReason,
   LEVEL_LABELS,
   type LevelTier,
   type QuestionTopic,
 } from "@/lib/leveling";
+import { computeStats, TOPIC_KOREAN } from "@/lib/weakness";
 
 const TOPIC_LABELS: Record<QuestionTopic, { title: string; desc: string; color: string }> = {
   main_idea: {
@@ -77,6 +79,22 @@ export default async function QuizHomePage({
     .order("started_at", { ascending: false })
     .limit(5);
 
+  // 약점 분석: 최근 50개 답안의 카테고리별 정답률
+  const { data: recentAttempts } = await supabase
+    .from("te_question_attempts")
+    .select("is_correct, te_questions(topic)")
+    .eq("user_id", userResp.user.id)
+    .not("is_correct", "is", null)
+    .order("answered_at", { ascending: false })
+    .limit(50);
+  const myTopics = allowedTopics(level);
+  const attemptRows = (recentAttempts ?? []).map((a) => {
+    const q = Array.isArray(a.te_questions) ? a.te_questions[0] : (a.te_questions as any);
+    return { topic: q?.topic as QuestionTopic, is_correct: a.is_correct };
+  }).filter((a) => a.topic && myTopics.includes(a.topic));
+  const stats = computeStats(attemptRows);
+  const enoughData = stats.length > 0 && stats.every((s) => s.total >= 5);
+
   const err = searchParams?.err;
 
   return (
@@ -103,6 +121,49 @@ export default async function QuizHomePage({
           지금 단계에서는 열려 있지 않은 카테고리예요. 다른 카테고리부터 풀어 주세요.
         </div>
       )}
+      {err === "no_topics" && (
+        <div className="text-sm bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-900">
+          현재 단계에서 열린 카테고리가 없습니다.
+        </div>
+      )}
+
+      {/* 약점 집중 모드 추천 */}
+      <section className="bg-gradient-to-r from-brand-50 to-amber-50 border border-brand-200 rounded-lg p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0 space-y-1">
+            <h2 className="text-lg font-semibold text-brand-900">🎯 약점 집중 모드</h2>
+            {enoughData ? (
+              <p className="text-sm text-gray-700">
+                지금까지의 정답률을 보고 <b>가장 약한 카테고리에 6문제</b>, 나머지 카테고리에
+                나머지 4문제를 자동 배분해서 10문제를 만들어줍니다.
+              </p>
+            ) : (
+              <p className="text-sm text-gray-700">
+                먼저 카테고리별 5문제 이상씩 풀면, 가장 약한 카테고리를 자동으로 더 자주
+                노출해주는 모드가 활성화됩니다.
+              </p>
+            )}
+            {enoughData && stats.length > 0 && (
+              <div className="flex gap-3 text-xs text-gray-600 mt-2 flex-wrap">
+                {stats.map((s) => (
+                  <span key={s.topic}>
+                    {TOPIC_KOREAN[s.topic]} {Math.round(s.accuracy * 100)}%
+                    <span className="text-gray-400"> ({s.correct}/{s.total})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <form action="/api/quiz/start-adaptive" method="post">
+            <button
+              type="submit"
+              className="px-5 py-2.5 rounded-md bg-brand-600 text-white font-semibold hover:bg-brand-700 whitespace-nowrap"
+            >
+              약점 집중 시작
+            </button>
+          </form>
+        </div>
+      </section>
       {err === "no_questions" && (
         <div className="text-sm bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-900">
           현재 단계에서 풀 수 있는 문제가 부족합니다. 선생님께 문제 추가를 요청하세요.
