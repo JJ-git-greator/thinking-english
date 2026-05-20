@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { STAGE_LABELS, type ReviewStage } from "@/lib/review-schedule";
+import LearningFlow from "@/components/LearningFlow";
 
 export default async function ReviewTodayPage() {
   const supabase = createClient();
@@ -45,19 +46,22 @@ export default async function ReviewTodayPage() {
   return (
     <div className="space-y-8">
       {/* 히어로 헤더 */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white p-7 sm:p-9 shadow-md">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-green-700 text-white p-7 sm:p-9 shadow-md">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_30%,white,transparent_50%)]" />
         <div className="relative space-y-3">
-          <div className="text-sm text-brand-100">오늘의 복습</div>
+          <div className="text-sm text-emerald-100">🔁 오늘의 복습</div>
           <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
             {dueCount > 0 ? `지금 ${dueCount}개 단락이 기다리고 있어요` : "지금은 복습할 게 없어요"}
           </h1>
-          <p className="text-brand-50 text-sm sm:text-base max-w-xl">
+          <p className="text-emerald-50 text-sm sm:text-base max-w-xl">
             한 번 푼 단락도 시간이 지나면 흐릿해져요. 시스템이 잊을 만한 시점에 다시 띄워주니
-            점수를 유지하면 간격이 점점 길어집니다.
+            점수를 유지하면 간격이 점점 길어집니다 (1일 → 3일 → 7일 → 21일 → 60일).
           </p>
         </div>
       </div>
+
+      {/* 학습 흐름 — 곳곳에서 흐름 인지 */}
+      <LearningFlow current="review" />
 
       {/* 통계 3장 */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">

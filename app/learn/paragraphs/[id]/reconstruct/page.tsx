@@ -55,14 +55,24 @@ export default async function ReconstructPage({
       </Link>
 
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 sm:p-7 shadow-md">
-        <div className="text-xs font-semibold text-blue-50 mb-1">3회독 · 재구성</div>
+        <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
+          <div className="text-xs font-semibold text-blue-50">📖 단락 깊이 읽기 · 3/3단계 (재구성)</div>
+          <div className="hidden sm:flex items-center gap-1 text-xs text-white/80">
+            <span className="px-2 py-0.5 rounded-full bg-white/10">1회독 ✓</span>
+            <span>→</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/10">2회독 ✓</span>
+            <span>→</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">3회독</span>
+          </div>
+        </div>
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
           단락 {paragraph.ord + 1} — 핵심에서 전체로
         </h1>
         <p className="text-blue-50 mt-2 text-sm sm:text-base">
           본문은 가려집니다. 아래 두 문장만 보고, 단락 전체 내용을{" "}
           <b className="text-white">한국어로 자기 말로 풀어써 보세요</b>. 영어 작문이 아니라
-          이해 점검입니다. AI가 채점하고 코칭을 남겨요.
+          이해 점검입니다. AI가 채점하고 코칭을 남겨요. 완료하면 며칠 후 자동으로 복습에
+          등장합니다.
         </p>
       </div>
 

@@ -29,8 +29,8 @@ export default async function LearnLayout({ children }: { children: React.ReactN
             </Link>
             <nav className="hidden sm:flex gap-1 text-sm">
               <NavLink href="/learn/review" label="오늘의 복습" />
-              <NavLink href="/learn/passages" label="지문 학습" />
-              <NavLink href="/learn/quiz" label="10문제 단위" />
+              <NavLink href="/learn/passages" label="단락 깊이 읽기" />
+              <NavLink href="/learn/quiz" label="유형 집중 훈련" />
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm">

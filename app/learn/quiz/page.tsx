@@ -11,6 +11,7 @@ import {
   type QuestionTopic,
 } from "@/lib/leveling";
 import { computeStats, TOPIC_KOREAN } from "@/lib/weakness";
+import LearningFlow from "@/components/LearningFlow";
 
 const TOPIC_META: Record<
   QuestionTopic,
@@ -115,12 +116,38 @@ export default async function QuizHomePage({
 
   return (
     <div className="space-y-8">
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">10문제 단위 학습</h1>
-        <p className="text-gray-600 mt-2 max-w-2xl">
-          10문제씩 풀고 바로 채점합니다. 오답에는 <b>왜 그렇게 골랐는지</b>를 남겨야 다음 묶음으로
-          넘어가요. 문제 수를 채우는 게 아니라, 한 문제마다 사고를 점검합니다.
+      {/* 히어로 헤더 */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 to-blue-700 text-white p-7 sm:p-9 shadow-md">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_80%_30%,white,transparent_50%)]" />
+        <div className="relative space-y-3">
+          <div className="text-sm text-sky-100">🎯 유형 집중 훈련</div>
+          <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
+            약점 유형을 짧은 사이클로 굳히기
+          </h1>
+          <p className="text-sky-50 text-sm sm:text-base max-w-2xl">
+            객관식 10문제씩 빠르게 풀고 즉시 채점합니다. 오답에는
+            <b className="text-white"> 왜 그렇게 골랐는지</b>를 남겨야 다음 묶음으로 넘어가요.
+            <span className="block mt-1 text-sky-100">
+              ⓘ 단락 깊이 읽기 다음에 보조 훈련으로 쓸 때 효과가 큽니다.
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* 학습 흐름 */}
+      <LearningFlow current="drill" />
+
+      {/* 절차 안내 */}
+      <div className="bg-sky-50 border border-sky-200 rounded-xl p-5 sm:p-6">
+        <div className="text-sm font-bold text-sky-900 mb-3">10문제 사이클은 어떻게 돌아가나요?</div>
+        <div className="space-y-2 text-sm text-gray-700">
+          <Step num={1} title="문제 풀이" desc="한 문제씩 답 1~4 중 선택. 그리고 왜 그 답을 골랐는지 한 줄 적기 (4자 이상)." />
+          <Step num={2} title="즉시 채점" desc="10번까지 다 풀면 자동 채점. 어떤 문제가 맞고 틀렸는지 바로 표시." />
+          <Step num={3} title="오답 정리" desc="오답마다 '왜 틀렸는지' 한 줄 필수 입력. 이걸 다 채워야 다음 10문제로 넘어가요." />
+          <Step num={4} title="약점 자동 추적" desc="카테고리별 정답률을 시스템이 자동 분석. 약한 유형은 다음 묶음에서 더 자주 등장합니다." />
+        </div>
+        <p className="text-xs text-sky-800 mt-3">
+          ⏱ 한 사이클 10~15분. 카테고리별 문제수가 풍부할수록 효과가 큽니다.
         </p>
       </div>
 
@@ -318,6 +345,20 @@ export default async function QuizHomePage({
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function Step({ num, title, desc }: { num: number; title: string; desc: string }) {
+  return (
+    <div className="flex gap-3">
+      <div className="shrink-0 w-7 h-7 rounded-full bg-sky-500 text-white text-sm font-bold flex items-center justify-center">
+        {num}
+      </div>
+      <div className="flex-1">
+        <span className="font-semibold text-gray-900">{title}</span>
+        <span className="text-gray-600"> — {desc}</span>
+      </div>
     </div>
   );
 }

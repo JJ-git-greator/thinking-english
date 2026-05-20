@@ -49,7 +49,16 @@ export default async function StructurePage({
       </Link>
 
       <div className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-2xl p-6 sm:p-7 shadow-md">
-        <div className="text-xs font-semibold text-sky-50 mb-1">2회독 · Structure</div>
+        <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
+          <div className="text-xs font-semibold text-sky-50">📖 단락 깊이 읽기 · 2/3단계 (Structure)</div>
+          <div className="hidden sm:flex items-center gap-1 text-xs text-white/80">
+            <span className="px-2 py-0.5 rounded-full bg-white/10">1회독 ✓</span>
+            <span>→</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">2회독</span>
+            <span>→</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/10">3회독</span>
+          </div>
+        </div>
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
           단락 {paragraph.ord + 1} — 구조와 어법 점검
         </h1>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import LearningFlow from "@/components/LearningFlow";
 
 type Tier = "all" | "low" | "mid" | "high" | "elite";
 
@@ -84,9 +85,35 @@ export default async function PassagesPage({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">지문 라이브러리</h1>
-        <p className="text-gray-500 mt-1">학습할 지문을 골라 한 권씩 끝내보세요.</p>
+      {/* 히어로 헤더 */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-white p-7 sm:p-9 shadow-md">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_80%_30%,white,transparent_50%)]" />
+        <div className="relative space-y-3">
+          <div className="text-sm text-amber-100">📖 단락 깊이 읽기</div>
+          <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
+            한 단락을 끝까지 파고드세요
+          </h1>
+          <p className="text-amber-50 text-sm sm:text-base max-w-2xl">
+            영어 단락 한 편을 <b className="text-white">3번 다른 각도</b>로 읽습니다.
+            메모리가 아니라 진짜 이해를 만들기 위한 메인 학습이에요.
+          </p>
+        </div>
+      </div>
+
+      {/* 학습 흐름 */}
+      <LearningFlow current="deep" />
+
+      {/* 절차 안내 */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 sm:p-6">
+        <div className="text-sm font-bold text-amber-900 mb-3">한 단락을 어떻게 학습하나요?</div>
+        <div className="space-y-2 text-sm text-gray-700">
+          <Step num={1} title="1회독 · Gist" desc="단락에서 핵심 두 문장(메인+서포팅)을 클릭으로 고르세요. AI가 선택 적합도를 평가합니다." />
+          <Step num={2} title="2회독 · Structure" desc="이 단락의 영어 구조·어법 포인트를 한국어로 메모합니다." />
+          <Step num={3} title="3회독 · 재구성" desc="원문을 가린 채 두 문장만 보고 단락 전체를 한국어로 재구성합니다. AI가 4축 채점."/>
+        </div>
+        <p className="text-xs text-amber-800 mt-3">
+          ⏱ 한 단락당 10~15분. 완료한 단락은 며칠 뒤 <b>오늘의 복습</b>에 자동으로 다시 등장합니다.
+        </p>
       </div>
 
       {/* 난이도 필터 탭 */}
@@ -163,6 +190,20 @@ const TIER_TAB_COLOR: Record<string, string> = {
   high: "bg-orange-500 text-white",
   elite: "bg-rose-500 text-white",
 };
+
+function Step({ num, title, desc }: { num: number; title: string; desc: string }) {
+  return (
+    <div className="flex gap-3">
+      <div className="shrink-0 w-7 h-7 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center">
+        {num}
+      </div>
+      <div className="flex-1">
+        <span className="font-semibold text-gray-900">{title}</span>
+        <span className="text-gray-600"> — {desc}</span>
+      </div>
+    </div>
+  );
+}
 
 function TierTab({
   tier,
@@ -303,9 +344,9 @@ function BookCard({
               />
             </div>
             <div className="flex gap-2 text-[10px] text-gray-500 pt-0.5">
-              <Step label="1회독" done={progress.gist} total={paraCount} />
-              <Step label="2회독" done={progress.structure} total={paraCount} />
-              <Step label="3회독" done={progress.recon} total={paraCount} />
+              <StepBar label="1회독" done={progress.gist} total={paraCount} />
+              <StepBar label="2회독" done={progress.structure} total={paraCount} />
+              <StepBar label="3회독" done={progress.recon} total={paraCount} />
             </div>
           </div>
         )}
@@ -314,7 +355,7 @@ function BookCard({
   );
 }
 
-function Step({ label, done, total }: { label: string; done: number; total: number }) {
+function StepBar({ label, done, total }: { label: string; done: number; total: number }) {
   const full = done >= total && total > 0;
   return (
     <span
