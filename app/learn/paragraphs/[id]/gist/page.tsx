@@ -19,7 +19,9 @@ export default async function GistPage({ params }: { params: { id: string } }) {
 
   const { data: existing } = await supabase
     .from("te_gist_notes")
-    .select("main_idea_text, supporting_text, main_idea_offset, supporting_offset")
+    .select(
+      "main_idea_text, supporting_text, main_idea_offset, supporting_offset, main_reasoning, supporting_reasoning, ai_evaluation",
+    )
     .eq("user_id", userId)
     .eq("paragraph_id", paragraph.id)
     .maybeSingle();
