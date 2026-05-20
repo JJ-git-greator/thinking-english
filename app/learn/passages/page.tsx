@@ -107,9 +107,9 @@ export default async function PassagesPage({
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 sm:p-6">
         <div className="text-sm font-bold text-amber-900 mb-3">한 단락을 어떻게 학습하나요?</div>
         <div className="space-y-2 text-sm text-gray-700">
-          <Step num={1} title="1회독 · Gist" desc="단락에서 핵심 두 문장(메인+서포팅)을 클릭으로 고르세요. AI가 선택 적합도를 평가합니다." />
+          <Step num={1} title="1회독 · Gist" desc="단락에서 핵심 두 문장(메인+서포팅)을 클릭으로 고르세요. 선택 적합도를 즉시 검토해줍니다." />
           <Step num={2} title="2회독 · Structure" desc="이 단락의 영어 구조·어법 포인트를 한국어로 메모합니다." />
-          <Step num={3} title="3회독 · 재구성" desc="원문을 가린 채 두 문장만 보고 단락 전체를 한국어로 재구성합니다. AI가 4축 채점."/>
+          <Step num={3} title="3회독 · 재구성" desc="원문을 가린 채 두 문장만 보고 단락 전체를 한국어로 재구성합니다. 첨삭과 코칭이 따라옵니다."/>
         </div>
         <p className="text-xs text-amber-800 mt-3">
           ⏱ 한 단락당 10~15분. 완료한 단락은 며칠 뒤 <b>오늘의 복습</b>에 자동으로 다시 등장합니다.

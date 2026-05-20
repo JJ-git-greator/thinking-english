@@ -68,7 +68,7 @@ export default function ReconstructWorkspace({
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data.message || data.error || "채점 실패");
+        throw new Error(data.message || data.error || "첨삭에 실패했어요.");
       }
       setResult(data);
       setShowOriginal(true); // reveal original after grading
@@ -107,7 +107,7 @@ export default function ReconstructWorkspace({
               checked={preferSmart}
               onChange={(e) => setPreferSmart(e.target.checked)}
             />
-            정밀 채점 (더 똑똑한 모델 사용)
+            꼼꼼한 첨삭 (시간이 조금 더 걸려요)
           </label>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function ReconstructWorkspace({
         disabled={submitting}
         className="px-5 py-2.5 rounded-md bg-accent-600 text-white font-semibold hover:bg-accent-500 disabled:opacity-50"
       >
-        {submitting ? "채점 중..." : "AI 채점 받기"}
+        {submitting ? "첨삭 중..." : "첨삭 받기"}
       </button>
 
       {result && <ResultPanel result={result} />}
@@ -182,7 +182,7 @@ function ResultPanel({ result }: { result: GradeResult }) {
         </div>
       )}
 
-      <p className="text-xs text-gray-400">model: {result.model}</p>
+      {/* 엔진 표시는 디버그용이라 노출하지 않음 */}
     </div>
   );
 }

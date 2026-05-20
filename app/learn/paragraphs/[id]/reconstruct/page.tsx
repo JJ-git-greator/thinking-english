@@ -71,7 +71,7 @@ export default async function ReconstructPage({
         <p className="text-blue-50 mt-2 text-sm sm:text-base">
           본문은 가려집니다. 아래 두 문장만 보고, 단락 전체 내용을{" "}
           <b className="text-white">한국어로 자기 말로 풀어써 보세요</b>. 영어 작문이 아니라
-          이해 점검입니다. AI가 채점하고 코칭을 남겨요. 완료하면 며칠 후 자동으로 복습에
+          이해 점검입니다. 첨삭과 코칭이 따라오고, 완료하면 며칠 후 자동으로 복습에
           등장합니다.
         </p>
       </div>

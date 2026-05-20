@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import GistEditor, { type GistSelection } from "@/components/GistEditor";
 import { createClient } from "@/lib/supabase/client";
 
-interface AIEvaluation {
+interface Evaluation {
   overall: number;
   main_accuracy: number;
   supporting_accuracy: number;
@@ -31,7 +31,7 @@ interface Props {
     supporting_offset: { start: number; end: number } | null;
     main_reasoning?: string | null;
     supporting_reasoning?: string | null;
-    ai_evaluation?: AIEvaluation | null;
+    ai_evaluation?: Evaluation | null;
   } | null;
 }
 
@@ -52,7 +52,7 @@ export default function GistWorkspace({ paragraphId, body, initial }: Props) {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [coaching, setCoaching] = useState(false);
-  const [evaluation, setEvaluation] = useState<AIEvaluation | null>(
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(
     initial?.ai_evaluation ?? null,
   );
 
@@ -113,7 +113,7 @@ export default function GistWorkspace({ paragraphId, body, initial }: Props) {
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data.message || data.error || "AI 코칭 실패");
+        throw new Error(data.message || data.error || "선택 검토에 실패했어요.");
       }
       setEvaluation(data);
     } catch (err) {
@@ -185,7 +185,7 @@ export default function GistWorkspace({ paragraphId, body, initial }: Props) {
           disabled={!canSave || coaching || saving}
           className="px-5 py-2.5 rounded-md border-2 border-accent-600 text-accent-600 font-semibold hover:bg-blue-50 disabled:opacity-50"
         >
-          {coaching ? "AI가 보는 중..." : "AI 코칭 받기"}
+          {coaching ? "검토 중..." : "선택 검토 받기"}
         </button>
 
         {canSave && (savedAt || evaluation) && (
@@ -209,13 +209,13 @@ export default function GistWorkspace({ paragraphId, body, initial }: Props) {
   );
 }
 
-function EvaluationPanel({ evaluation }: { evaluation: AIEvaluation }) {
+function EvaluationPanel({ evaluation }: { evaluation: Evaluation }) {
   const e = evaluation;
   return (
     <div className="bg-white border-2 border-accent-600 rounded-lg p-6 space-y-4">
       <div className="flex items-baseline gap-3">
         <span className="text-5xl font-bold text-accent-600">{e.overall}</span>
-        <span className="text-gray-500">/ 100 — Gist 선택 평가</span>
+        <span className="text-gray-500">/ 100 — 선택 검토 결과</span>
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-center">
@@ -243,7 +243,7 @@ function EvaluationPanel({ evaluation }: { evaluation: AIEvaluation }) {
         <p className="text-gray-700">{e.next_step}</p>
       </div>
 
-      {e.model && <p className="text-xs text-gray-400">model: {e.model}</p>}
+      {/* 엔진 표시는 디버그용이라 노출하지 않음 */}
     </div>
   );
 }
