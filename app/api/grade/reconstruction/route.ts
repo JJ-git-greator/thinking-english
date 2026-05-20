@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { gradeReconstruction } from "@/lib/claude/grade-reconstruction";
+import { nextSchedule, type ReviewStage } from "@/lib/review-schedule";
 
 export const runtime = "nodejs";
 
@@ -98,6 +99,9 @@ export async function POST(req: Request) {
     );
   }
 
+  // Schedule next review based on score (spaced repetition)
+  await scheduleReview(supabase, userId, paragraph.id, result.score);
+
   // Update progress (cheap upsert)
   await updateProgress(supabase, userId);
 
@@ -105,6 +109,38 @@ export async function POST(req: Request) {
     attemptId: inserted.id,
     ...result,
   });
+}
+
+async function scheduleReview(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  paragraphId: string,
+  score: number,
+) {
+  // Look up existing review row
+  const { data: existing } = await supabase
+    .from("te_paragraph_reviews")
+    .select("stage, review_count")
+    .eq("user_id", userId)
+    .eq("paragraph_id", paragraphId)
+    .maybeSingle();
+
+  const currentStage = (existing?.stage ?? "new") as ReviewStage;
+  const { nextStage, intervalDays, nextReviewAt } = nextSchedule({ currentStage, score });
+
+  await supabase.from("te_paragraph_reviews").upsert(
+    {
+      user_id: userId,
+      paragraph_id: paragraphId,
+      stage: nextStage,
+      interval_days: intervalDays,
+      next_review_at: nextReviewAt.toISOString(),
+      last_score: score,
+      review_count: (existing?.review_count ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,paragraph_id" },
+  );
 }
 
 async function updateProgress(supabase: ReturnType<typeof createClient>, userId: string) {

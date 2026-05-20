@@ -22,6 +22,9 @@ export default async function LearnLayout({ children }: { children: React.ReactN
               Thinking <span className="text-brand-600">English</span>
             </Link>
             <nav className="flex gap-4 text-sm text-gray-600">
+              <Link href="/learn/review" className="hover:text-gray-900">
+                오늘의 복습
+              </Link>
               <Link href="/learn/passages" className="hover:text-gray-900">
                 지문 학습
               </Link>
