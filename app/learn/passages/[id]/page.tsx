@@ -35,10 +35,7 @@ export default async function PassageDetailPage({
 
   const notesByPara = new Map<
     string,
-    {
-      hasGist: boolean;
-      hasStructure: boolean;
-    }
+    { hasGist: boolean; hasStructure: boolean }
   >();
   for (const n of gistNotes ?? []) {
     notesByPara.set(n.paragraph_id, {
@@ -61,11 +58,18 @@ export default async function PassageDetailPage({
     }
   }
 
-  // 지문 전체 회독 진척 계산
   const totalPara = te_paragraphs.length || 1;
   const pass1Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasGist).length;
   const pass2Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasStructure).length;
   const pass3Done = te_paragraphs.filter((p: any) => lastAttemptByPara.has(p.id)).length;
+
+  const tier = (passage.difficulty as string) ?? "none";
+  const tierMeta = TIER_META[tier] ?? TIER_META.none;
+  const grade = passage.grade_level
+    ? passage.grade_level <= 9
+      ? `중${passage.grade_level - 6}`
+      : `고${passage.grade_level - 9}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -74,25 +78,55 @@ export default async function PassageDetailPage({
           href="/learn/passages"
           className="text-sm text-gray-500 hover:text-gray-900"
         >
-          ← 지문 목록
+          ← 지문 라이브러리
         </Link>
-        <h1 className="text-3xl font-bold mt-2">{passage.title}</h1>
-        <p className="text-gray-500 mt-1">
-          {passage.source && `${passage.source} · `}단락 {te_paragraphs.length}개
-        </p>
       </div>
 
-      {/* 3회독 진척 요약 */}
-      <div className="bg-white border rounded-lg p-5">
-        <div className="text-sm font-medium text-gray-700 mb-3">3회독 진척</div>
-        <div className="grid grid-cols-3 gap-3">
+      {/* 책 표지 — 지문 헤더 */}
+      <div className={`rounded-2xl overflow-hidden shadow-md ${tierMeta.cover}`}>
+        <div className={`h-2 ${tierMeta.band}`} />
+        <div className="p-6 sm:p-8 space-y-3">
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`px-2 py-0.5 rounded-full bg-white/70 ${tierMeta.text} font-semibold`}>
+              {tierMeta.label}
+            </span>
+            {grade && (
+              <span className="px-2 py-0.5 rounded-full bg-white/70 text-gray-700">{grade}</span>
+            )}
+            {passage.source && (
+              <span className="text-gray-600">· {passage.source}</span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+            {passage.title}
+          </h1>
+          <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
+            {passage.body}
+          </p>
+        </div>
+      </div>
+
+      {/* 3회독 진척 */}
+      <div className="bg-white border rounded-xl p-5 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-800">3회독 진척</h2>
+          <span className="text-xs text-gray-500">단락 {totalPara}개</span>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
           <RoundCell label="1회독 · Gist" done={pass1Done} total={totalPara} color="bg-amber-500" />
-          <RoundCell label="2회독 · Structure" done={pass2Done} total={totalPara} color="bg-sky-500" />
+          <RoundCell
+            label="2회독 · Structure"
+            done={pass2Done}
+            total={totalPara}
+            color="bg-sky-500"
+          />
           <RoundCell label="3회독 · 재구성" done={pass3Done} total={totalPara} color="bg-blue-600" />
         </div>
       </div>
 
+      {/* 단락 카드 */}
       <div className="space-y-3">
+        <h2 className="text-xl font-bold text-gray-900">단락별 학습</h2>
         {te_paragraphs.map((p: any, i: number) => {
           const note = notesByPara.get(p.id);
           const hasGist = note?.hasGist ?? false;
@@ -101,54 +135,69 @@ export default async function PassageDetailPage({
           const hasRecon = typeof score === "number";
 
           return (
-            <div key={p.id} className="bg-white border rounded-lg p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-500">
-                    단락 {i + 1}
-                  </span>
-                  <StepBadge label="Gist" done={hasGist} color="amber" />
-                  <StepBadge label="Structure" done={hasStructure} color="sky" />
-                  <StepBadge
-                    label={hasRecon ? `재구성 ${score}점` : "재구성"}
-                    done={hasRecon}
-                    color="blue"
-                  />
+            <div
+              key={p.id}
+              className="bg-white border rounded-xl shadow-sm overflow-hidden hover:shadow-md transition"
+            >
+              <div className="p-5 sm:p-6 space-y-4">
+                {/* 단락 헤더 */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400">단락 {i + 1}</span>
+                    <span className="text-gray-300">·</span>
+                    <StepBadge label="1회독" done={hasGist} color="amber" />
+                    <StepBadge label="2회독" done={hasStructure} color="sky" />
+                    <StepBadge
+                      label={hasRecon ? `${score}점` : "3회독"}
+                      done={hasRecon}
+                      color="blue"
+                    />
+                  </div>
                 </div>
-                <div className="flex gap-2">
+
+                {/* 단락 본문 미리보기 */}
+                <p className="text-gray-700 leading-relaxed line-clamp-3 text-sm sm:text-base">
+                  {p.body}
+                </p>
+
+                {/* 버튼 */}
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Link
                     href={`/learn/paragraphs/${p.id}/gist`}
-                    className={`text-sm px-3 py-1.5 rounded-md text-white ${
+                    className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-lg font-semibold transition ${
                       hasGist
-                        ? "bg-amber-500 hover:bg-amber-600"
-                        : "bg-brand-600 hover:bg-brand-700"
+                        ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                        : "bg-amber-500 text-white hover:bg-amber-600"
                     }`}
                   >
-                    {hasGist ? "1회독 다시" : "1회독 시작"}
+                    {hasGist ? "✓ 1회독 다시" : "1회독 시작"}
                   </Link>
                   {hasGist && (
                     <Link
                       href={`/learn/paragraphs/${p.id}/structure`}
-                      className={`text-sm px-3 py-1.5 rounded-md text-white ${
+                      className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-lg font-semibold transition ${
                         hasStructure
-                          ? "bg-sky-500 hover:bg-sky-600"
-                          : "bg-sky-600 hover:bg-sky-700"
+                          ? "bg-sky-100 text-sky-800 hover:bg-sky-200"
+                          : "bg-sky-500 text-white hover:bg-sky-600"
                       }`}
                     >
-                      {hasStructure ? "2회독 다시" : "2회독"}
+                      {hasStructure ? "✓ 2회독 다시" : "2회독"}
                     </Link>
                   )}
                   {hasGist && (
                     <Link
                       href={`/learn/paragraphs/${p.id}/reconstruct`}
-                      className="text-sm px-3 py-1.5 rounded-md bg-accent-600 text-white hover:bg-accent-500"
+                      className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-lg font-semibold transition ${
+                        hasRecon
+                          ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
                     >
-                      {hasRecon ? "3회독 다시" : "3회독"}
+                      {hasRecon ? "✓ 3회독 다시" : "3회독"}
                     </Link>
                   )}
                 </div>
               </div>
-              <p className="text-gray-700 leading-relaxed line-clamp-2">{p.body}</p>
             </div>
           );
         })}
@@ -156,6 +205,42 @@ export default async function PassageDetailPage({
     </div>
   );
 }
+
+const TIER_META: Record<
+  string,
+  { cover: string; band: string; text: string; label: string }
+> = {
+  low: {
+    cover: "bg-gradient-to-br from-emerald-50 to-green-100",
+    band: "bg-gradient-to-r from-emerald-400 to-green-500",
+    text: "text-emerald-800",
+    label: "하",
+  },
+  mid: {
+    cover: "bg-gradient-to-br from-amber-50 to-yellow-100",
+    band: "bg-gradient-to-r from-amber-400 to-yellow-500",
+    text: "text-amber-800",
+    label: "중",
+  },
+  high: {
+    cover: "bg-gradient-to-br from-orange-50 to-orange-100",
+    band: "bg-gradient-to-r from-orange-400 to-orange-600",
+    text: "text-orange-800",
+    label: "상",
+  },
+  elite: {
+    cover: "bg-gradient-to-br from-rose-50 to-red-100",
+    band: "bg-gradient-to-r from-rose-500 to-red-600",
+    text: "text-rose-800",
+    label: "극상",
+  },
+  none: {
+    cover: "bg-gradient-to-br from-gray-50 to-gray-100",
+    band: "bg-gradient-to-r from-gray-300 to-gray-400",
+    text: "text-gray-700",
+    label: "기본",
+  },
+};
 
 function RoundCell({
   label,
@@ -172,13 +257,13 @@ function RoundCell({
   return (
     <div>
       <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-        <span>{label}</span>
-        <span>
+        <span className="font-medium">{label}</span>
+        <span className="text-gray-700">
           {done} / {total}
         </span>
       </div>
       <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -195,14 +280,13 @@ function StepBadge({
 }) {
   const cls = done
     ? color === "amber"
-      ? "bg-amber-100 text-amber-800"
+      ? "bg-amber-500 text-white"
       : color === "sky"
-        ? "bg-sky-100 text-sky-800"
-        : "bg-blue-100 text-blue-800"
+        ? "bg-sky-500 text-white"
+        : "bg-blue-600 text-white"
     : "bg-gray-100 text-gray-400";
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>
-      {done ? "✓ " : ""}
+    <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold ${cls}`}>
       {label}
     </span>
   );

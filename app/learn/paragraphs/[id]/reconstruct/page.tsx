@@ -47,20 +47,22 @@ export default async function ReconstructPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/learn/passages/${passage?.id}`}
-          className="text-sm text-gray-500 hover:text-gray-900"
-        >
-          ← {passage?.title}
-        </Link>
-        <h1 className="text-2xl font-bold mt-2">
-          단락 {paragraph.ord + 1} — 역방향 재구성
+      <Link
+        href={`/learn/passages/${passage?.id}`}
+        className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
+      >
+        ← {passage?.title}
+      </Link>
+
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 sm:p-7 shadow-md">
+        <div className="text-xs font-semibold text-blue-50 mb-1">3회독 · 재구성</div>
+        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
+          단락 {paragraph.ord + 1} — 핵심에서 전체로
         </h1>
-        <p className="text-gray-600 mt-2">
-          본문은 가려집니다. 아래 두 문장만 보고, 단락 전체 내용이 어떻게
-          이어지는지 <b>한국어로 자기 말로 풀어써 보세요</b>. 영어 작문이 아니라
-          <b> 사고력 훈련</b>이에요. AI가 채점하고 코칭을 남깁니다.
+        <p className="text-blue-50 mt-2 text-sm sm:text-base">
+          본문은 가려집니다. 아래 두 문장만 보고, 단락 전체 내용을{" "}
+          <b className="text-white">한국어로 자기 말로 풀어써 보세요</b>. 영어 작문이 아니라
+          이해 점검입니다. AI가 채점하고 코칭을 남겨요.
         </p>
       </div>
 

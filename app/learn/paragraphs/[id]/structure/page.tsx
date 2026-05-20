@@ -41,19 +41,21 @@ export default async function StructurePage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/learn/passages/${passage?.id}`}
-          className="text-sm text-gray-500 hover:text-gray-900"
-        >
-          ← {passage?.title}
-        </Link>
-        <h1 className="text-2xl font-bold mt-2">
-          단락 {paragraph.ord + 1} — 2회독 Structure
+      <Link
+        href={`/learn/passages/${passage?.id}`}
+        className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
+      >
+        ← {passage?.title}
+      </Link>
+
+      <div className="bg-gradient-to-r from-sky-500 to-blue-500 text-white rounded-2xl p-6 sm:p-7 shadow-md">
+        <div className="text-xs font-semibold text-sky-50 mb-1">2회독 · Structure</div>
+        <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
+          단락 {paragraph.ord + 1} — 구조와 어법 점검
         </h1>
-        <p className="text-gray-600 mt-2 text-sm">
+        <p className="text-sky-50 mt-2 text-sm sm:text-base">
           1회독에서 잡은 메인 아이디어를 바탕으로, 이 단락의{" "}
-          <b>핵심 영어 구조·어법 포인트</b>를 자기 말로 메모하세요.
+          <b className="text-white">핵심 영어 구조·어법 포인트</b>를 자기 말로 메모하세요.
         </p>
       </div>
 
