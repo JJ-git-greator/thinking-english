@@ -1,7 +1,19 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function PassagesPage() {
+type Tier = "all" | "low" | "mid" | "high" | "elite";
+
+export default async function PassagesPage({
+  searchParams,
+}: {
+  searchParams?: { tier?: string };
+}) {
+  const filterTier: Tier = (["all", "low", "mid", "high", "elite"] as Tier[]).includes(
+    searchParams?.tier as Tier,
+  )
+    ? (searchParams!.tier as Tier)
+    : "all";
+
   const supabase = createClient();
   const { data: userResp } = await supabase.auth.getUser();
   const userId = userResp.user?.id;
@@ -77,13 +89,30 @@ export default async function PassagesPage() {
         <p className="text-gray-500 mt-1">학습할 지문을 골라 한 권씩 끝내보세요.</p>
       </div>
 
+      {/* 난이도 필터 탭 */}
+      <div className="flex gap-1 overflow-x-auto -mx-1 px-1 pb-1">
+        <TierTab tier="all" active={filterTier === "all"} count={passages?.length ?? 0} />
+        <TierTab tier="low" active={filterTier === "low"} count={groups.low.length} />
+        <TierTab tier="mid" active={filterTier === "mid"} count={groups.mid.length} />
+        <TierTab tier="high" active={filterTier === "high"} count={groups.high.length} />
+        <TierTab tier="elite" active={filterTier === "elite"} count={groups.elite.length} />
+      </div>
+
       {(passages?.length ?? 0) === 0 && (
         <div className="text-center py-12 text-gray-400 bg-white border rounded-lg">
           아직 등록된 지문이 없습니다.
         </div>
       )}
 
-      {(["low", "mid", "high", "elite"] as const).map((tier) => {
+      {filterTier !== "all" && groups[filterTier].length === 0 && (
+        <div className="text-center py-12 text-gray-400 bg-white border border-dashed rounded-lg">
+          {TIER_TITLES[filterTier]} 난이도에 등록된 지문이 아직 없어요.
+        </div>
+      )}
+
+      {(["low", "mid", "high", "elite"] as const)
+        .filter((tier) => filterTier === "all" || filterTier === tier)
+        .map((tier) => {
         const group = groups[tier];
         if (group.length === 0) return null;
         return (
@@ -112,11 +141,58 @@ export default async function PassagesPage() {
 }
 
 const TIER_TITLES: Record<string, string> = {
+  all: "전체",
   low: "하 — 핵심 잡기",
   mid: "중 — 의미 추론",
   high: "상 — 복합 사고",
   elite: "극상 — 추상 추론",
 };
+
+const TIER_SHORT: Record<string, string> = {
+  all: "전체",
+  low: "하",
+  mid: "중",
+  high: "상",
+  elite: "극상",
+};
+
+const TIER_TAB_COLOR: Record<string, string> = {
+  all: "bg-gray-900 text-white",
+  low: "bg-emerald-500 text-white",
+  mid: "bg-amber-500 text-white",
+  high: "bg-orange-500 text-white",
+  elite: "bg-rose-500 text-white",
+};
+
+function TierTab({
+  tier,
+  active,
+  count,
+}: {
+  tier: string;
+  active: boolean;
+  count: number;
+}) {
+  return (
+    <Link
+      href={tier === "all" ? "/learn/passages" : `/learn/passages?tier=${tier}`}
+      className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition ${
+        active
+          ? TIER_TAB_COLOR[tier]
+          : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300"
+      }`}
+    >
+      {TIER_SHORT[tier]}
+      <span
+        className={`text-xs px-1.5 py-0.5 rounded-full ${
+          active ? "bg-white/20" : "bg-gray-100 text-gray-500"
+        }`}
+      >
+        {count}
+      </span>
+    </Link>
+  );
+}
 
 const TIER_COLORS: Record<string, { band: string; bg: string; ring: string; text: string }> = {
   low: {
