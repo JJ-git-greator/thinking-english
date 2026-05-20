@@ -14,6 +14,7 @@ export default function LoginForm() {
   const [tab, setTab] = useState<Tab>("academy");
   const [inviteCode, setInviteCode] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,32 +27,41 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      // 1) 이름 → 합성 이메일 조회
-      const lookup = await fetch("/api/auth/lookup-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: tab,
-          invite_code: tab === "academy" ? inviteCode : undefined,
-          display_name: displayName,
-        }),
-      });
-      const lookupData = await lookup.json();
-      if (!lookup.ok) {
-        throw new Error(lookupData.message || lookupData.error || "로그인 실패");
+      let loginEmail: string;
+
+      if (tab === "academy") {
+        // 학원 코드 + 이름 → 합성 이메일 조회
+        const lookup = await fetch("/api/auth/lookup-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invite_code: inviteCode,
+            display_name: displayName,
+          }),
+        });
+        const lookupData = await lookup.json();
+        if (!lookup.ok) {
+          throw new Error(lookupData.message || lookupData.error || "로그인 실패");
+        }
+        loginEmail = lookupData.email;
+      } else {
+        // B2C: 이메일 직접 사용
+        loginEmail = email.trim().toLowerCase();
       }
 
-      // 2) 받은 이메일로 로그인
       const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: lookupData.email,
+        email: loginEmail,
         password,
       });
 
       if (signInErr) {
-        throw new Error("비밀번호가 일치하지 않아요.");
+        throw new Error(
+          tab === "academy"
+            ? "비밀번호가 일치하지 않아요."
+            : "이메일 또는 비밀번호가 일치하지 않아요.",
+        );
       }
 
-      // 3) role 확인 후 라우팅
       const { data: userResp } = await supabase.auth.getUser();
       if (!userResp.user) {
         throw new Error("로그인 정보를 확인하지 못했습니다.");
@@ -79,12 +89,16 @@ export default function LoginForm() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">로그인</h1>
-          <p className="text-sm text-gray-500">이름과 비밀번호로 들어오세요.</p>
+          <p className="text-sm text-gray-500">
+            {tab === "academy"
+              ? "학원 코드와 이름·비밀번호로 들어오세요."
+              : "이메일·비밀번호로 들어오세요."}
+          </p>
         </div>
 
         {signedUp && (
           <div className="text-sm bg-brand-50 text-brand-700 border border-brand-200 rounded-md p-3">
-            가입이 완료되었습니다. 같은 이름·비밀번호로 로그인하세요.
+            가입이 완료되었습니다. 같은 정보로 로그인하세요.
           </div>
         )}
 
@@ -110,28 +124,40 @@ export default function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {tab === "academy" && (
-            <Field label="학원 코드">
+          {tab === "academy" ? (
+            <>
+              <Field label="학원 코드">
+                <input
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  placeholder="예: TEST01"
+                  className="w-full px-3 py-2.5 border rounded-lg uppercase tracking-wider"
+                  required
+                />
+              </Field>
+              <Field label="이름">
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="예: 김민지"
+                  className="w-full px-3 py-2.5 border rounded-lg"
+                  maxLength={40}
+                  required
+                />
+              </Field>
+            </>
+          ) : (
+            <Field label="이메일">
               <input
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-                placeholder="예: TEST01"
-                className="w-full px-3 py-2.5 border rounded-lg uppercase tracking-wider"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-3 py-2.5 border rounded-lg"
                 required
               />
             </Field>
           )}
-
-          <Field label="이름">
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="예: 김민지"
-              className="w-full px-3 py-2.5 border rounded-lg"
-              maxLength={40}
-              required
-            />
-          </Field>
 
           <Field label="비밀번호">
             <input

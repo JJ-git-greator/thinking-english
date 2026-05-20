@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [tab, setTab] = useState<Tab>("academy");
   const [inviteCode, setInviteCode] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [gradeLevel, setGradeLevel] = useState<number>(10);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           mode: tab,
           invite_code: tab === "academy" ? inviteCode : undefined,
+          email: tab === "b2c" ? email : undefined,
           display_name: displayName,
           grade_level: gradeLevel,
           password,
@@ -41,7 +43,7 @@ export default function SignupPage() {
 
       // 가입 직후 자동 로그인 시도
       const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: data.synthEmail,
+        email: data.email,
         password,
       });
       if (signInErr) {
@@ -101,12 +103,25 @@ export default function SignupPage() {
             </Field>
           )}
 
+          {tab === "b2c" && (
+            <Field label="이메일" hint="로그인할 때 사용해요. 비밀번호 찾기에도 필요합니다.">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-3 py-2.5 border rounded-lg"
+                required
+              />
+            </Field>
+          )}
+
           <Field
             label="이름"
             hint={
               tab === "academy"
                 ? "학원에서 같은 이름이 있으면 차단됩니다. 끝에 글자를 붙여 구분해 주세요."
-                : "이미 쓰는 이름이면 다른 이름을 써주세요."
+                : "본인이 부르고 싶은 이름이면 충분해요."
             }
           >
             <input
