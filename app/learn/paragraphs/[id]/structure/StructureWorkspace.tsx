@@ -4,153 +4,252 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+interface Choice {
+  key: string;
+  text: string;
+}
+
+interface Question {
+  id: string;
+  ord: number;
+  kind: string; // 'subject' | 'verb' | 'structure'
+  prompt: string;
+  target_sentence: string | null;
+  choices: Choice[];
+  correct_answer: string;
+  explanation: string | null;
+  last: { chosen_answer: string; is_correct: boolean } | null;
+}
+
 interface Props {
   paragraphId: string;
   paragraphBody: string;
   passageId: string;
-  gist: { mainIdea: string; supporting: string };
-  initial: {
-    structureNotes: string;
-    structureDoneAt: string | null;
-  };
+  questions: Question[];
 }
+
+const KIND_LABEL: Record<string, string> = {
+  subject: "주어 찾기",
+  verb: "동사 일치",
+  structure: "문장 구조",
+};
+
+const KIND_COLOR: Record<string, string> = {
+  subject: "bg-amber-100 text-amber-800",
+  verb: "bg-sky-100 text-sky-800",
+  structure: "bg-indigo-100 text-indigo-800",
+};
 
 export default function StructureWorkspace({
   paragraphId,
   paragraphBody,
   passageId,
-  gist,
-  initial,
+  questions: initial,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
-  const [notes, setNotes] = useState(initial.structureNotes);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<Date | null>(
-    initial.structureDoneAt ? new Date(initial.structureDoneAt) : null,
-  );
-  const [error, setError] = useState<string | null>(null);
+  const [questions, setQuestions] = useState(initial);
 
-  const canSave = notes.trim().length >= 10;
-
-  async function handleSave() {
-    if (!canSave) return;
-    setSaving(true);
-    setError(null);
-    const { data: userResp } = await supabase.auth.getUser();
-    if (!userResp.user) {
-      setError("로그인이 만료되었습니다.");
-      setSaving(false);
-      return;
-    }
-    const { error: upErr } = await supabase
-      .from("te_gist_notes")
-      .update({
-        structure_notes: notes.trim(),
-        structure_done_at: new Date().toISOString(),
-      })
-      .eq("user_id", userResp.user.id)
-      .eq("paragraph_id", paragraphId);
-
-    if (upErr) {
-      setError(upErr.message);
-      setSaving(false);
-      return;
-    }
-    setSavedAt(new Date());
-    setSaving(false);
+  if (initial.length === 0) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center space-y-2">
+        <div className="text-4xl">📝</div>
+        <p className="text-gray-700 font-semibold">아직 이 단락의 Structure 문제가 준비되지 않았어요.</p>
+        <p className="text-sm text-gray-500">
+          선생님이 추가하면 여기에 객관식이 표시됩니다. 일단 3회독으로 넘어가도 괜찮아요.
+        </p>
+        <button
+          onClick={() => router.push(`/learn/paragraphs/${paragraphId}/reconstruct`)}
+          className="mt-3 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+        >
+          3회독 (재구성)으로 →
+        </button>
+      </div>
+    );
   }
+
+  const correctCount = questions.filter((q) => q.last?.is_correct).length;
+  const answeredCount = questions.filter((q) => !!q.last).length;
+  const allAnswered = answeredCount === questions.length;
 
   return (
     <div className="space-y-5">
-      <div className="bg-white border rounded-lg p-5">
-        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-          {paragraphBody}
-        </p>
+      {/* 단락 본문 (참고용) */}
+      <div className="bg-white border rounded-xl p-5 sm:p-6">
+        <div className="text-xs font-semibold text-gray-500 mb-2">참고 단락</div>
+        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{paragraphBody}</p>
       </div>
 
-      <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 space-y-2 text-sm">
-        <div className="font-semibold text-brand-700">1회독에서 잡은 두 문장</div>
-        <p className="text-gray-800">
-          <span className="text-xs font-semibold text-brand-700 mr-2">메인</span>
-          {gist.mainIdea}
-        </p>
-        <p className="text-gray-800">
-          <span className="text-xs font-semibold text-brand-700 mr-2">서포팅</span>
-          {gist.supporting}
-        </p>
-      </div>
-
-      <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 text-sm space-y-2">
-        <div className="font-semibold text-sky-800">무엇을 적으면 되나요</div>
-        <ul className="text-gray-700 space-y-1 list-disc ml-5">
-          <li>
-            <b>주어가 무엇인지</b> — 첫 명사를 찾고, 그 명사가 단수인지 복수인지.
-          </li>
-          <li>
-            <b>동사의 형태</b> — 주어와 일치하는지, 시제와 능동/수동이 자연스러운지.
-          </li>
-          <li>
-            <b>문장이 어떻게 늘어났는지</b> — 한 문장에 의미가 더 붙어 있다면 어떤
-            구조(to부정사·관계절·접속사 등)로 늘어났는지.
-          </li>
-          <li>
-            메인 아이디어를 만드는 핵심 문장을 짧게 인용하고, 그 문장의 구조에서
-            <b> 의미가 어떻게 만들어지는지</b> 한 줄로 적어보세요.
-          </li>
-        </ul>
-      </div>
-
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          이 단락의 구조 메모 (한국어로 적어도 OK, 10자 이상)
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={8}
-          placeholder={`예:
-- 메인 문장 주어는 "this hidden cost" (단수), 동사 "matters"가 단수 일치
-- 두 번째 문장은 "tries to study"처럼 to부정사로 의미가 한 번 더 늘어남
-- 마지막 문장은 도치 없이 주어+동사+목적어로 평범하게 흐름`}
-          className="w-full px-4 py-3 border rounded-lg leading-relaxed font-mono text-sm"
-          maxLength={3000}
-        />
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">{notes.trim().length}자</span>
-          {savedAt && (
-            <span className="text-green-700 font-medium">
-              ✓ 2회독 완료 ({savedAt.toLocaleTimeString("ko-KR")})
-            </span>
-          )}
+      {/* 진척 */}
+      <div className="flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-3">
+        <div className="text-sm text-gray-700">
+          진행: <b>{answeredCount}</b> / {questions.length}
         </div>
+        {allAnswered && (
+          <div className="text-sm">
+            정답: <b className="text-green-700">{correctCount}</b> / {questions.length}
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
-          {error}
-        </div>
-      )}
+      {/* 문제 목록 */}
+      <div className="space-y-3">
+        {questions.map((q) => (
+          <QuestionCard
+            key={q.id}
+            question={q}
+            onAnswered={(chosenAnswer, isCorrect) => {
+              setQuestions((prev) =>
+                prev.map((x) =>
+                  x.id === q.id
+                    ? { ...x, last: { chosen_answer: chosenAnswer, is_correct: isCorrect } }
+                    : x,
+                ),
+              );
+            }}
+            supabase={supabase}
+            paragraphId={paragraphId}
+          />
+        ))}
+      </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={!canSave || saving}
-          className="px-5 py-2.5 rounded-md bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-50"
-        >
-          {saving ? "저장 중..." : "2회독 저장"}
-        </button>
-        {savedAt && (
+      {/* 끝나면 다음으로 */}
+      {allAnswered && (
+        <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl p-5 sm:p-6 space-y-3">
+          <div className="text-sm text-sky-700 font-semibold">2회독 완료 🎉</div>
+          <p className="text-gray-700">
+            {correctCount === questions.length
+              ? "모두 맞췄어요! 단락 구조가 머릿속에 잘 박혔어요."
+              : `${questions.length}문제 중 ${correctCount}개 맞췄어요. 틀린 문제는 해설을 다시 한 번 보고 가세요.`}
+          </p>
           <button
-            onClick={() =>
-              router.push(`/learn/paragraphs/${paragraphId}/reconstruct`)
-            }
-            className="px-5 py-2.5 rounded-md border border-accent-600 text-accent-600 font-semibold hover:bg-blue-50"
+            onClick={() => router.push(`/learn/paragraphs/${paragraphId}/reconstruct`)}
+            className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700"
           >
             3회독 (재구성)으로 →
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuestionCard({
+  question: q,
+  onAnswered,
+  supabase,
+  paragraphId,
+}: {
+  question: Question;
+  onAnswered: (chosenAnswer: string, isCorrect: boolean) => void;
+  supabase: ReturnType<typeof createClient>;
+  paragraphId: string;
+}) {
+  const [chosen, setChosen] = useState<string | null>(q.last?.chosen_answer ?? null);
+  const [revealed, setRevealed] = useState(!!q.last);
+  const [saving, setSaving] = useState(false);
+
+  async function handleChoose(key: string) {
+    if (revealed || saving) return;
+    setChosen(key);
+    setSaving(true);
+
+    const isCorrect = key === q.correct_answer;
+    const { data: userResp } = await supabase.auth.getUser();
+    if (userResp.user) {
+      await supabase.from("te_structure_attempts").insert({
+        user_id: userResp.user.id,
+        question_id: q.id,
+        paragraph_id: paragraphId,
+        chosen_answer: key,
+        is_correct: isCorrect,
+      });
+    }
+    setRevealed(true);
+    setSaving(false);
+    onAnswered(key, isCorrect);
+  }
+
+  const wasCorrect = q.last?.is_correct ?? null;
+
+  return (
+    <div
+      className={`bg-white border-2 rounded-xl p-5 sm:p-6 transition ${
+        revealed
+          ? wasCorrect
+            ? "border-green-300"
+            : "border-red-300"
+          : "border-gray-200"
+      }`}
+    >
+      {/* 헤더 */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs font-bold text-gray-400">문제 {q.ord + 1}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${KIND_COLOR[q.kind] ?? "bg-gray-100 text-gray-700"}`}>
+          {KIND_LABEL[q.kind] ?? q.kind}
+        </span>
+        {revealed && (
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+              wasCorrect ? "bg-green-500 text-white" : "bg-red-500 text-white"
+            }`}
+          >
+            {wasCorrect ? "✓ 정답" : "✗ 오답"}
+          </span>
         )}
       </div>
+
+      {/* 질문 */}
+      <p className="text-gray-900 font-semibold mb-2 leading-relaxed">{q.prompt}</p>
+
+      {/* 대상 영어 문장 */}
+      {q.target_sentence && (
+        <div className="bg-gray-50 border-l-4 border-sky-400 px-3 py-2 mb-3 text-sm italic text-gray-700 rounded">
+          "{q.target_sentence}"
+        </div>
+      )}
+
+      {/* 보기 */}
+      <div className="space-y-2">
+        {q.choices.map((c) => {
+          const isChosen = chosen === c.key;
+          const isCorrectChoice = c.key === q.correct_answer;
+          let cls = "border-gray-200 hover:bg-gray-50 cursor-pointer";
+          if (revealed) {
+            if (isCorrectChoice) cls = "border-green-400 bg-green-50";
+            else if (isChosen) cls = "border-red-400 bg-red-50";
+            else cls = "border-gray-200 opacity-60";
+          } else if (isChosen) {
+            cls = "border-brand-500 bg-brand-50";
+          }
+          return (
+            <button
+              key={c.key}
+              type="button"
+              disabled={revealed || saving}
+              onClick={() => handleChoose(c.key)}
+              className={`w-full text-left border-2 rounded-lg px-4 py-3 text-sm sm:text-base transition active:scale-[0.99] ${cls}`}
+            >
+              <span className="font-semibold mr-2">{c.key}.</span>
+              {c.text}
+              {revealed && isChosen && !isCorrectChoice && (
+                <span className="ml-2 text-xs text-red-700">[내 선택]</span>
+              )}
+              {revealed && isCorrectChoice && (
+                <span className="ml-2 text-xs text-green-700">[정답]</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 해설 */}
+      {revealed && q.explanation && (
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-gray-800">
+          <div className="font-semibold text-blue-800 mb-1">해설</div>
+          {q.explanation}
+        </div>
+      )}
     </div>
   );
 }

@@ -21,18 +21,45 @@ export default async function StructurePage({
 
   if (!paragraph) notFound();
 
-  const { data: existing } = await supabase
+  // 1회독 (Gist) 안 되어 있으면 먼저 1회독부터
+  const { data: gist } = await supabase
     .from("te_gist_notes")
-    .select(
-      "main_idea_text, supporting_text, structure_notes, structure_done_at",
-    )
+    .select("main_idea_text, supporting_text, structure_done_at")
     .eq("user_id", userId)
     .eq("paragraph_id", paragraph.id)
     .maybeSingle();
 
-  // 1회독 (Gist) 안 되어 있으면 먼저 1회독부터
-  if (!existing?.main_idea_text || !existing?.supporting_text) {
+  if (!gist?.main_idea_text || !gist?.supporting_text) {
     redirect(`/learn/paragraphs/${paragraph.id}/gist`);
+  }
+
+  // 단락에 묶인 Structure 객관식 가져오기
+  const { data: questions } = await supabase
+    .from("te_structure_questions")
+    .select("id, ord, kind, prompt, target_sentence, choices, correct_answer, explanation")
+    .eq("paragraph_id", paragraph.id)
+    .order("ord", { ascending: true });
+
+  // 학생의 답안 기록 (이 단락의 문제별로 마지막 시도)
+  const questionIds = (questions ?? []).map((q) => q.id);
+  const { data: attempts } = questionIds.length
+    ? await supabase
+        .from("te_structure_attempts")
+        .select("question_id, chosen_answer, is_correct, answered_at")
+        .eq("user_id", userId)
+        .in("question_id", questionIds)
+        .order("answered_at", { ascending: false })
+    : { data: [] };
+
+  // 각 question에 대해 가장 최근 시도만 매칭
+  const lastByQ = new Map<string, { chosen_answer: string; is_correct: boolean }>();
+  for (const a of attempts ?? []) {
+    if (!lastByQ.has(a.question_id)) {
+      lastByQ.set(a.question_id, {
+        chosen_answer: a.chosen_answer,
+        is_correct: a.is_correct,
+      });
+    }
   }
 
   const passage = Array.isArray(paragraph.te_passages)
@@ -63,8 +90,8 @@ export default async function StructurePage({
           단락 {paragraph.ord + 1} — 구조와 어법 점검
         </h1>
         <p className="text-sky-50 mt-2 text-sm sm:text-base">
-          1회독에서 잡은 메인 아이디어를 바탕으로, 이 단락의{" "}
-          <b className="text-white">핵심 영어 구조·어법 포인트</b>를 자기 말로 메모하세요.
+          이 단락의 <b className="text-white">주어 · 동사 일치 · 구조</b>를 3문제로 점검합니다.
+          답을 고르면 즉시 해설이 나와요.
         </p>
       </div>
 
@@ -72,14 +99,17 @@ export default async function StructurePage({
         paragraphId={paragraph.id}
         paragraphBody={paragraph.body}
         passageId={passage?.id ?? ""}
-        gist={{
-          mainIdea: existing.main_idea_text!,
-          supporting: existing.supporting_text!,
-        }}
-        initial={{
-          structureNotes: existing.structure_notes ?? "",
-          structureDoneAt: existing.structure_done_at ?? null,
-        }}
+        questions={(questions ?? []).map((q) => ({
+          id: q.id,
+          ord: q.ord,
+          kind: q.kind,
+          prompt: q.prompt,
+          target_sentence: q.target_sentence,
+          choices: q.choices,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation,
+          last: lastByQ.get(q.id) ?? null,
+        }))}
       />
     </div>
   );
