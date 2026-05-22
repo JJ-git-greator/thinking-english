@@ -239,18 +239,28 @@ function ChunkTrainer({
             <p className="text-gray-900 leading-relaxed">{sentence.full_sentence}</p>
           </div>
           <div>
-            <div className="text-sm text-gray-700 font-semibold mb-2">
-              스스로 평가해주세요
+            <div className="text-sm text-gray-700 font-semibold mb-1">
+              이 문장의 직독직해, 얼마나 매끄러웠나요?
             </div>
+            <p className="text-xs text-gray-500 mb-2">
+              영어를 왼쪽부터 읽으면서 한국어 의미가 얼마나 빠르게 떠올랐는지 기준으로 평가해주세요.
+            </p>
             <div className="grid grid-cols-3 gap-2">
               {([3, 2, 1] as const).map((r) => (
                 <button
                   key={r}
                   disabled={saving}
                   onClick={() => submitRating(r)}
-                  className={`px-3 py-3 rounded-lg font-semibold text-sm transition active:scale-[0.98] disabled:opacity-50 ${RATING_COLOR[r]}`}
+                  className={`px-2 py-3 rounded-lg font-semibold text-sm transition active:scale-[0.98] disabled:opacity-50 flex flex-col items-center gap-0.5 ${RATING_COLOR[r]}`}
                 >
-                  {RATING_LABEL[r]}
+                  <span className="text-base">{RATING_LABEL[r]}</span>
+                  <span className="text-[10px] font-medium opacity-90">
+                    {r === 3
+                      ? "막힘 없이 떠올랐다"
+                      : r === 2
+                        ? "조금 더듬었다"
+                        : "거의 안 떠올랐다"}
+                  </span>
                 </button>
               ))}
             </div>
