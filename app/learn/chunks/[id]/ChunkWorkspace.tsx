@@ -162,71 +162,78 @@ function ChunkTrainer({
         </div>
       )}
 
+      {/* 안내 — 다음 청크 카드를 직접 탭/클릭 */}
+      {!allRevealed && (
+        <p className="text-xs text-sky-700 bg-sky-50 border border-sky-100 rounded-md px-3 py-2">
+          파란 테두리 카드를 탭하면 한국어 의미가 펼쳐지고 다음 청크가 열립니다. 앞으로
+          되돌아가지 마세요.
+        </p>
+      )}
+
       {/* 청크 순차 공개 영역 */}
       <ol className="space-y-3">
         {sentence.chunks.map((c, i) => {
           const opened = i < revealedTo;
           const current = i === revealedTo;
           const locked = i > revealedTo;
-          return (
-            <li
-              key={i}
-              className={`rounded-lg border-2 px-4 py-3 transition ${
-                opened
-                  ? "border-emerald-200 bg-emerald-50/60"
-                  : current
-                  ? "border-sky-300 bg-sky-50"
-                  : "border-gray-200 bg-gray-50/50 opacity-60"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  className={`text-xs font-bold mt-1 shrink-0 ${
-                    opened ? "text-emerald-700" : current ? "text-sky-700" : "text-gray-400"
-                  }`}
-                >
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  {locked ? (
-                    <div className="text-gray-400 italic select-none">
-                      (잠김 — 앞 청크 먼저)
+          const baseCls = `w-full text-left rounded-lg border-2 px-4 py-3 transition ${
+            opened
+              ? "border-emerald-200 bg-emerald-50/60"
+              : current
+              ? "border-sky-300 bg-sky-50 hover:bg-sky-100 cursor-pointer active:scale-[0.99]"
+              : "border-gray-200 bg-gray-50/50 opacity-60 cursor-not-allowed"
+          }`;
+          const inner = (
+            <div className="flex items-start gap-3">
+              <span
+                className={`text-xs font-bold mt-1 shrink-0 ${
+                  opened ? "text-emerald-700" : current ? "text-sky-700" : "text-gray-400"
+                }`}
+              >
+                {i + 1}
+              </span>
+              <div className="flex-1 min-w-0">
+                {locked ? (
+                  <div className="text-gray-400 italic select-none">
+                    (잠김)
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-gray-900 font-medium leading-relaxed">
+                      {c.en}
                     </div>
-                  ) : (
-                    <>
-                      <div className="text-gray-900 font-medium leading-relaxed">
-                        {c.en}
+                    {opened && (
+                      <div className="text-sm text-emerald-800 mt-1 leading-relaxed">
+                        → {c.ko}
                       </div>
-                      {opened && (
-                        <div className="text-sm text-emerald-800 mt-1 leading-relaxed">
-                          → {c.ko}
-                        </div>
-                      )}
-                      {current && !opened && (
-                        <p className="text-xs text-sky-700 mt-1">
-                          이 청크의 한국어 의미를 떠올린 다음 아래 버튼을 누르세요.
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
+                    )}
+                    {current && !opened && (
+                      <div className="text-xs text-sky-700 mt-1 font-semibold">
+                        탭해서 한국어 의미 확인 →
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
+            </div>
+          );
+          return (
+            <li key={i}>
+              {current ? (
+                <button type="button" onClick={revealNext} className={baseCls}>
+                  {inner}
+                </button>
+              ) : (
+                <div className={baseCls}>{inner}</div>
+              )}
             </li>
           );
         })}
       </ol>
 
-      {/* 액션 */}
-      {!allRevealed ? (
-        <button
-          onClick={revealNext}
-          className="w-full px-5 py-3 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-700 active:scale-[0.99] transition"
-        >
-          한국어 의미 확인 →
-        </button>
-      ) : (
+      {/* 모두 공개된 후 — 전체 문장 + 자가평가 */}
+      {allRevealed && (
         <div className="space-y-3">
-          {/* 전체 문장 다시 보기 */}
           <div className="bg-gray-50 border rounded-lg px-4 py-3">
             <div className="text-xs font-semibold text-gray-500 mb-1">전체 문장</div>
             <p className="text-gray-900 leading-relaxed">{sentence.full_sentence}</p>
