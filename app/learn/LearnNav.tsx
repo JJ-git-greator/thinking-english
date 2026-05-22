@@ -12,6 +12,7 @@ interface Props {
 const NAV_ITEMS = [
   { href: "/learn/review", label: "오늘의 복습", short: "복습", emoji: "🔁" },
   { href: "/learn/passages", label: "단락 깊이 읽기", short: "깊이 읽기", emoji: "📖" },
+  { href: "/learn/chunks", label: "직독직해", short: "직독직해", emoji: "📝" },
   { href: "/learn/quiz", label: "유형 집중 훈련", short: "유형 훈련", emoji: "🎯" },
 ];
 

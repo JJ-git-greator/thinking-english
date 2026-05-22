@@ -58,6 +58,13 @@ export default async function PassageDetailPage({
     }
   }
 
+  // 직독직해 청크 문장 존재 여부
+  const { data: chunkRows } = await supabase
+    .from("te_chunk_sentences")
+    .select("paragraph_id")
+    .in("paragraph_id", paragraphIds);
+  const hasChunkByPara = new Set<string>((chunkRows ?? []).map((r) => r.paragraph_id));
+
   const totalPara = te_paragraphs.length || 1;
   const pass1Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasGist).length;
   const pass2Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasStructure).length;
@@ -133,6 +140,7 @@ export default async function PassageDetailPage({
           const hasStructure = note?.hasStructure ?? false;
           const score = lastAttemptByPara.get(p.id);
           const hasRecon = typeof score === "number";
+          const hasChunks = hasChunkByPara.has(p.id);
 
           return (
             <div
@@ -172,6 +180,14 @@ export default async function PassageDetailPage({
                   >
                     {hasGist ? "✓ 1회독 다시" : "1회독 시작"}
                   </Link>
+                  {hasGist && hasChunks && (
+                    <Link
+                      href={`/learn/chunks/${p.id}`}
+                      className="inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-lg font-semibold bg-purple-500 text-white hover:bg-purple-600 transition"
+                    >
+                      📝 직독직해
+                    </Link>
+                  )}
                   {hasGist && (
                     <Link
                       href={`/learn/paragraphs/${p.id}/structure`}
