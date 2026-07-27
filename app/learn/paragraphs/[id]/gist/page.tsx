@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import GistWorkspace from "./GistWorkspace";
-import LearningFlow from "@/components/LearningFlow";
+import StepNav from "@/components/StepNav";
+import { getParagraphFlow, resolveNeighbors } from "@/lib/paragraph-steps";
 
 export default async function GistPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -31,8 +32,11 @@ export default async function GistPage({ params }: { params: { id: string } }) {
     ? paragraph.te_passages[0]
     : paragraph.te_passages;
 
+  const flow = await getParagraphFlow(supabase, paragraph.id, userId);
+  const neighbors = flow ? resolveNeighbors(flow, "gist") : null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href={`/learn/passages/${passage?.id}`}
         className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
@@ -40,16 +44,11 @@ export default async function GistPage({ params }: { params: { id: string } }) {
         ← {passage?.title}
       </Link>
 
+      {flow && <StepNav flow={flow} current="gist" position="top" />}
+
       <div className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-2xl p-6 sm:p-7 shadow-md">
-        <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
-          <div className="text-xs font-semibold text-amber-50">📖 단락 깊이 읽기 · 1/3단계 (Gist)</div>
-          <div className="hidden sm:flex items-center gap-1 text-xs text-white/80">
-            <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">1회독</span>
-            <span>→</span>
-            <span className="px-2 py-0.5 rounded-full bg-white/10">2회독</span>
-            <span>→</span>
-            <span className="px-2 py-0.5 rounded-full bg-white/10">3회독</span>
-          </div>
+        <div className="text-xs font-semibold text-amber-50 mb-1">
+          🔦 1단계 · 핵심 문장 찾기
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
           단락 {paragraph.ord + 1} — 핵심 두 문장 찾기
@@ -61,7 +60,15 @@ export default async function GistPage({ params }: { params: { id: string } }) {
         </p>
       </div>
 
-      <GistWorkspace paragraphId={paragraph.id} body={paragraph.body} initial={existing ?? null} />
+      <GistWorkspace
+        paragraphId={paragraph.id}
+        body={paragraph.body}
+        initial={existing ?? null}
+        nextHref={neighbors?.next.href ?? `/learn/passages/${passage?.id}`}
+        nextLabel={neighbors?.next.label ?? "지문 화면으로"}
+      />
+
+      {flow && <StepNav flow={flow} current="gist" />}
     </div>
   );
 }

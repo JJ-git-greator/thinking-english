@@ -2,13 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PlayWorkspace from "./PlayWorkspace";
+import StepNav from "@/components/StepNav";
+import { getParagraphFlow, resolveNeighbors } from "@/lib/paragraph-steps";
 
 type Tier = "all" | "low" | "mid" | "high" | "elite";
 
 export default async function SvPlayPage({
   searchParams,
 }: {
-  searchParams?: { tier?: string; count?: string };
+  searchParams?: { tier?: string; count?: string; passage?: string; from?: string };
 }) {
   const supabase = createClient();
   const { data: userResp } = await supabase.auth.getUser();
@@ -21,42 +23,59 @@ export default async function SvPlayPage({
     : "all";
   const count = Math.min(50, Math.max(5, parseInt(searchParams?.count ?? "10") || 10));
 
+  // 지문 모드 — 단락 학습 흐름 안에서 "이 지문 문장만" 훈련
+  const passageId = searchParams?.passage ?? null;
+  const fromParagraphId = searchParams?.from ?? null;
+
+  const flow = fromParagraphId
+    ? await getParagraphFlow(supabase, fromParagraphId, userResp.user.id)
+    : null;
+  const neighbors = flow ? resolveNeighbors(flow, "sv") : null;
+
   let query = supabase
     .from("te_sv_drill_sentences")
     .select("id, full_sentence, tokens, subject_start, subject_end, verb_start, verb_end, difficulty, passage_id");
-  if (tier !== "all") query = query.eq("difficulty", tier);
+  if (passageId) query = query.eq("passage_id", passageId);
+  else if (tier !== "all") query = query.eq("difficulty", tier);
 
   // Supabase에는 ORDER BY random()을 직접 못 쓰므로 전부 가져와서 JS에서 셔플
   const { data: all } = await query.limit(200);
+
+  const backHref = flow ? `/learn/passages/${flow.passage.id}` : "/learn/sv";
+  const backLabel = flow ? flow.passage.title : "주어·동사 찾기";
 
   if (!all || all.length === 0) {
     return (
       <div className="space-y-6">
         <Link
-          href="/learn/sv"
+          href={backHref}
           className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
         >
-          ← 주어·동사 찾기
+          ← {backLabel}
         </Link>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center space-y-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center space-y-3">
           <div className="text-4xl">🌱</div>
-          <p className="text-gray-700 font-semibold">이 난이도에 문장이 없어요</p>
+          <p className="text-gray-700 font-semibold">
+            {passageId ? "이 지문에는 주어·동사 문장이 아직 없어요" : "이 난이도에 문장이 없어요"}
+          </p>
           <Link
-            href="/learn/sv"
+            href={neighbors?.next.href ?? "/learn/sv"}
             className="inline-block mt-2 px-4 py-2 rounded-md bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600"
           >
-            난이도 다시 고르기
+            {neighbors ? `${neighbors.next.label} →` : "난이도 다시 고르기"}
           </Link>
         </div>
       </div>
     );
   }
 
-  // 셔플 후 count만큼 자르기
-  const shuffled = [...all].sort(() => Math.random() - 0.5).slice(0, count);
+  // 지문 모드는 순서대로, 그 외에는 셔플 후 count만큼
+  const picked = passageId
+    ? [...all].slice(0, 20)
+    : [...all].sort(() => Math.random() - 0.5).slice(0, count);
 
   // 문장마다 어느 종류 (subject/verb)를 물을지 미리 결정 (서버에서 결정해야 새로고침 시 안 바뀜)
-  const items = shuffled.map((s) => ({
+  const items = picked.map((s, i) => ({
     id: s.id,
     full_sentence: s.full_sentence,
     tokens: s.tokens as string[],
@@ -64,18 +83,29 @@ export default async function SvPlayPage({
     subject_end: s.subject_end,
     verb_start: s.verb_start,
     verb_end: s.verb_end,
-    kind: (Math.random() < 0.5 ? "subject" : "verb") as "subject" | "verb",
+    kind: (passageId ? (i % 2 === 0 ? "subject" : "verb") : Math.random() < 0.5 ? "subject" : "verb") as
+      | "subject"
+      | "verb",
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
-        href="/learn/sv"
+        href={backHref}
         className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
       >
-        ← 주어·동사 찾기
+        ← {backLabel}
       </Link>
-      <PlayWorkspace items={items} />
+
+      {flow && <StepNav flow={flow} current="sv" position="top" />}
+
+      <PlayWorkspace
+        items={items}
+        nextHref={neighbors?.next.href ?? null}
+        nextLabel={neighbors?.next.label ?? null}
+      />
+
+      {flow && <StepNav flow={flow} current="sv" />}
     </div>
   );
 }

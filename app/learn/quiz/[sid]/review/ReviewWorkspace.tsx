@@ -27,10 +27,21 @@ interface Props {
   sessionId: string;
   sessionTopic: string;
   initialRemediationDone: boolean;
+  /** DB에 remediation_text 컬럼이 있을 때만 오답 교정 입력을 띄운다 */
+  remediationAvailable?: boolean;
+  /** 한 지문에서만 나온 묶음이면 그 지문 */
+  passage?: { id: string; title: string } | null;
   attempts: AttemptItem[];
 }
 
-export default function ReviewWorkspace({ sessionId, sessionTopic, initialRemediationDone, attempts: initial }: Props) {
+export default function ReviewWorkspace({
+  sessionId,
+  sessionTopic,
+  initialRemediationDone,
+  remediationAvailable = true,
+  passage = null,
+  attempts: initial,
+}: Props) {
   const supabase = createClient();
   const [attempts, setAttempts] = useState<AttemptItem[]>(initial);
   const [remediationDone, setRemediationDone] = useState(initialRemediationDone);
@@ -38,8 +49,11 @@ export default function ReviewWorkspace({ sessionId, sessionTopic, initialRemedi
 
   const wrongs = useMemo(() => attempts.filter((a) => a.is_correct === false), [attempts]);
   const wrongsRemaining = useMemo(
-    () => wrongs.filter((a) => !a.remediation_text || a.remediation_text.trim().length < 4),
-    [wrongs],
+    () =>
+      remediationAvailable
+        ? wrongs.filter((a) => !a.remediation_text || a.remediation_text.trim().length < 4)
+        : [],
+    [wrongs, remediationAvailable],
   );
 
   async function saveRemediation(attemptId: string, text: string) {
@@ -75,7 +89,7 @@ export default function ReviewWorkspace({ sessionId, sessionTopic, initialRemedi
 
   return (
     <div className="space-y-6">
-      {!remediationDone && wrongs.length > 0 && (
+      {!remediationDone && remediationAvailable && wrongs.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
           오답 <b>{wrongs.length}개</b> 중 <b>{wrongs.length - wrongsRemaining.length}개</b>{" "}
           교정 완료. 나머지 <b>{wrongsRemaining.length}개</b>도 한 줄 적어주세요.
@@ -86,34 +100,55 @@ export default function ReviewWorkspace({ sessionId, sessionTopic, initialRemedi
         <AttemptCard
           key={a.id}
           attempt={a}
+          remediationAvailable={remediationAvailable}
           onSaveRemediation={(text) => saveRemediation(a.id, text)}
           saving={saving === a.id}
         />
       ))}
 
       <div className="bg-white border rounded-lg p-5 space-y-3">
-        {remediationDone ? (
+        {remediationDone || !remediationAvailable ? (
           <div className="space-y-3">
             <p className="text-sm text-gray-700">
-              오답 교정이 끝났습니다. 다음 10문제로 넘어가서 같은 카테고리를 한 번 더
-              풀어보세요. 같은 유형이 다시 나오면 이번엔 덜 틀릴 거예요.
+              {passage
+                ? "이 지문은 여기까지예요. 새 지문으로 넘어가거나, 같은 지문을 한 번 더 풀어도 좋아요."
+                : "정리가 끝났습니다. 한 묶음 더 풀면 같은 유형에서 덜 틀리게 됩니다."}
             </p>
-            <div className="flex gap-2">
-              <Link
-                href="/learn/quiz"
-                className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                카테고리로
-              </Link>
-              <form action="/api/quiz/start" method="post" className="inline">
-                <input type="hidden" name="topic" value={sessionTopic} />
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-md bg-brand-600 text-white hover:bg-brand-700"
-                >
-                  같은 카테고리 다음 10문제 →
-                </button>
-              </form>
+            <div className="flex gap-2 flex-wrap">
+              {passage ? (
+                <>
+                  <Link
+                    href={`/learn/passages/${passage.id}`}
+                    className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    이 지문 화면으로
+                  </Link>
+                  <Link
+                    href="/learn/passages"
+                    className="px-4 py-2 rounded-md bg-brand-600 text-white hover:bg-brand-700"
+                  >
+                    새 지문 고르기 →
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/learn/quiz"
+                    className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    카테고리로
+                  </Link>
+                  <form action="/api/quiz/start" method="post" className="inline">
+                    <input type="hidden" name="topic" value={sessionTopic} />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-md bg-brand-600 text-white hover:bg-brand-700"
+                    >
+                      같은 카테고리 한 묶음 더 →
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -136,10 +171,12 @@ export default function ReviewWorkspace({ sessionId, sessionTopic, initialRemedi
 
 function AttemptCard({
   attempt,
+  remediationAvailable,
   onSaveRemediation,
   saving,
 }: {
   attempt: AttemptItem;
+  remediationAvailable: boolean;
   onSaveRemediation: (text: string) => void;
   saving: boolean;
 }) {
@@ -216,10 +253,10 @@ function AttemptCard({
         </div>
       )}
 
-      {!correct && (
+      {!correct && remediationAvailable && (
         <div className="space-y-1">
           <label className="block text-sm font-medium text-amber-800">
-            왜 틀렸는지 / 무엇을 놓쳤는지 한 줄 (필수)
+            왜 틀렸는지 / 무엇을 놓쳤는지 한 줄
           </label>
           <div className="flex gap-2">
             <input

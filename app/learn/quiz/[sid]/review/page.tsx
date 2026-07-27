@@ -19,16 +19,24 @@ export default async function ReviewPage({ params }: { params: { sid: string } }
     redirect(`/learn/quiz/${session.id}/play`);
   }
 
-  // 1) 시도 (단순)
-  const { data: attempts } = await supabase
+  // 1) 시도 (단순) — remediation_text 컬럼이 없는 DB에서도 화면이 죽지 않도록 분리 조회
+  const { data: attempts, error: attemptsErr } = await supabase
     .from("te_question_attempts")
-    .select(
-      "id, ord, question_id, chosen_answer, reason_text, is_correct, remediation_text",
-    )
+    .select("id, ord, question_id, chosen_answer, reason_text, is_correct")
     .eq("session_id", session.id)
     .order("ord", { ascending: true });
 
+  const { data: remediationRows, error: remediationErr } = await supabase
+    .from("te_question_attempts")
+    .select("id, remediation_text")
+    .eq("session_id", session.id);
+  const remediationAvailable = !remediationErr;
+  const remediationById = new Map<string, string | null>(
+    (remediationRows ?? []).map((r: any) => [r.id, r.remediation_text ?? null]),
+  );
+
   if (!attempts || attempts.length === 0) {
+    if (attemptsErr) console.error("[quiz/review] attempts load failed", attemptsErr);
     // 진단 가능한 에러 UI (404 대신)
     return (
       <div className="space-y-4">
@@ -108,7 +116,7 @@ export default async function ReviewPage({ params }: { params: { sid: string } }
       chosen_answer: a.chosen_answer,
       reason_text: a.reason_text,
       is_correct: a.is_correct,
-      remediation_text: a.remediation_text,
+      remediation_text: remediationById.get(a.id) ?? null,
       prompt: q?.prompt ?? "",
       choices: q?.choices ?? [],
       correct_answer: q?.correct_answer ?? "",
@@ -128,8 +136,14 @@ export default async function ReviewPage({ params }: { params: { sid: string } }
         </Link>
         <h1 className="text-2xl font-bold mt-2">채점 결과 + 오답 정리</h1>
         <p className="text-gray-600 mt-1 text-sm">
-          오답을 그냥 넘기지 마세요. <b>왜 틀렸는지 한 줄 적어야</b> 다음 묶음으로
-          넘어갑니다. 이 정리가 곧 다음 풀이의 정답률을 만듭니다.
+          {remediationAvailable ? (
+            <>
+              오답을 그냥 넘기지 마세요. <b>왜 틀렸는지 한 줄</b> 적으면 다음에 같은 유형에서
+              덜 틀립니다.
+            </>
+          ) : (
+            <>정답과 해설을 확인하고, 틀린 문제는 지문에서 근거를 다시 찾아보세요.</>
+          )}
         </p>
       </div>
 
@@ -144,6 +158,15 @@ export default async function ReviewPage({ params }: { params: { sid: string } }
         sessionId={session.id}
         sessionTopic={session.topic}
         initialRemediationDone={session.remediation_done ?? false}
+        remediationAvailable={remediationAvailable}
+        passage={
+          passageIds.length === 1
+            ? {
+                id: String(passageIds[0]),
+                title: pMap.get(String(passageIds[0]))?.title ?? "이 지문",
+              }
+            : null
+        }
         attempts={mapped}
       />
     </div>

@@ -21,6 +21,8 @@ interface Props {
   paragraphBody: string;
   gist: { mainIdea: string; supporting: string };
   latest: LatestAttempt | null;
+  nextHref: string;
+  nextLabel: string;
 }
 
 interface GradeResult {
@@ -39,6 +41,8 @@ export default function ReconstructWorkspace({
   paragraphBody,
   gist,
   latest,
+  nextHref,
+  nextLabel,
 }: Props) {
   const [text, setText] = useState(latest?.student_text ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -126,18 +130,28 @@ export default function ReconstructWorkspace({
         {submitting ? "첨삭 중..." : "첨삭 받기"}
       </button>
 
-      {result && <ResultPanel result={result} />}
-
+      {/* 채점 후에는 가려뒀던 원문을 피드백보다 먼저 보여준다.
+          (원문이 안 보이는 상태로 "마지막 문장을 놓쳤어요" 같은 말을 들으면
+           학생은 "그런 문장 없는데?" 하고 혼란스러워한다) */}
       {showOriginal && (
-        <details
-          className="bg-white border rounded-lg p-5"
-          open
-        >
-          <summary className="cursor-pointer font-semibold text-gray-700">
-            원문 단락 보기 (채점 후 공개)
-          </summary>
-          <p className="mt-3 text-gray-700 leading-relaxed">{paragraphBody}</p>
-        </details>
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-5">
+          <div className="text-sm font-bold text-gray-700 mb-2">
+            📖 가려뒀던 원문이에요 — 내가 빠뜨린 부분이 있는지 먼저 확인해 보세요
+          </div>
+          <p className="text-gray-800 leading-relaxed">{paragraphBody}</p>
+        </div>
+      )}
+
+      {result && (
+        <>
+          <ResultPanel result={result} />
+          <a
+            href={nextHref}
+            className="block text-center w-full py-3.5 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700 active:scale-[0.99] transition"
+          >
+            다음: {nextLabel} →
+          </a>
+        </>
       )}
 
       {!result && latest && (
@@ -166,20 +180,40 @@ function ResultPanel({ result }: { result: GradeResult }) {
       </div>
 
       {result.strengths.length > 0 && (
-        <Bullet title="잘한 점" items={result.strengths} color="text-green-700" />
+        <Bullet
+          title="잘한 점"
+          emoji="👍"
+          items={result.strengths.slice(0, 2)}
+          box="bg-green-50 border-green-200"
+          color="text-green-800"
+        />
       )}
       {result.weaknesses.length > 0 && (
-        <Bullet title="개선할 점" items={result.weaknesses} color="text-amber-700" />
+        <Bullet
+          title="아쉬운 점"
+          emoji="🔍"
+          items={result.weaknesses.slice(0, 2)}
+          box="bg-amber-50 border-amber-200"
+          color="text-amber-900"
+        />
       )}
       {result.suggestions.length > 0 && (
-        <Bullet title="다음 시도에서" items={result.suggestions} color="text-accent-600" />
+        <Bullet
+          title="다음엔 이렇게"
+          emoji="🚀"
+          items={result.suggestions.slice(0, 2)}
+          box="bg-blue-50 border-blue-200"
+          color="text-blue-900"
+        />
       )}
 
       {result.rewritten_example && (
-        <div className="space-y-1">
-          <div className="text-sm font-semibold text-gray-700">모범 예시</div>
-          <p className="text-gray-700 italic leading-relaxed">{result.rewritten_example}</p>
-        </div>
+        <details className="bg-gray-50 border rounded-lg p-4">
+          <summary className="text-sm font-bold text-gray-700 cursor-pointer select-none">
+            📄 이렇게 쓰면 좋아요 (모범 예시 보기)
+          </summary>
+          <p className="text-gray-700 leading-relaxed mt-2">{result.rewritten_example}</p>
+        </details>
       )}
 
       {/* 엔진 표시는 디버그용이라 노출하지 않음 */}
@@ -199,13 +233,30 @@ function SubScore({ label, value, max }: { label: string; value: number; max: nu
   );
 }
 
-function Bullet({ title, items, color }: { title: string; items: string[]; color: string }) {
+function Bullet({
+  title,
+  emoji,
+  items,
+  box,
+  color,
+}: {
+  title: string;
+  emoji: string;
+  items: string[];
+  box: string;
+  color: string;
+}) {
   return (
-    <div className="space-y-1">
-      <div className={`text-sm font-semibold ${color}`}>{title}</div>
-      <ul className="list-disc ml-5 space-y-1 text-gray-700">
+    <div className={`rounded-xl border ${box} p-4 space-y-2`}>
+      <div className={`text-sm font-bold ${color}`}>
+        {emoji} {title}
+      </div>
+      <ul className="space-y-2">
         {items.map((it, i) => (
-          <li key={i}>{it}</li>
+          <li key={i} className="text-gray-800 text-base leading-relaxed flex gap-2">
+            <span className="text-gray-400 shrink-0">·</span>
+            <span>{it}</span>
+          </li>
         ))}
       </ul>
     </div>

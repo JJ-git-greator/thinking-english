@@ -112,6 +112,56 @@ export default async function QuizHomePage({
     ? stats.reduce((a, b) => (a.accuracy < b.accuracy ? a : b))
     : null;
 
+  // ── 내가 읽은 지문 (깊이 읽기를 한 지문) → 그 지문 문제로 바로 연결 ───────────
+  const { data: myGists } = await supabase
+    .from("te_gist_notes")
+    .select("paragraph_id, updated_at")
+    .eq("user_id", userResp.user.id)
+    .order("updated_at", { ascending: false })
+    .limit(60);
+
+  const studiedParagraphIds = Array.from(
+    new Set((myGists ?? []).map((g) => g.paragraph_id)),
+  );
+  const { data: studiedParagraphs } = studiedParagraphIds.length
+    ? await supabase
+        .from("te_paragraphs")
+        .select("id, passage_id")
+        .in("id", studiedParagraphIds)
+    : { data: [] as { id: string; passage_id: string }[] };
+
+  // 최근 읽은 순서 유지
+  const paraToPassage = new Map(
+    (studiedParagraphs ?? []).map((p) => [p.id, p.passage_id]),
+  );
+  const studiedPassageIds: string[] = [];
+  for (const g of myGists ?? []) {
+    const pid = paraToPassage.get(g.paragraph_id);
+    if (pid && !studiedPassageIds.includes(pid)) studiedPassageIds.push(pid);
+  }
+  const topPassageIds = studiedPassageIds.slice(0, 6);
+
+  const { data: studiedPassages } = topPassageIds.length
+    ? await supabase
+        .from("te_passages")
+        .select("id, title, difficulty")
+        .in("id", topPassageIds)
+    : { data: [] as any[] };
+  const { data: passageQuestions } = topPassageIds.length
+    ? await supabase
+        .from("te_questions")
+        .select("id, passage_id")
+        .in("passage_id", topPassageIds)
+    : { data: [] as any[] };
+  const qCountByPassage = new Map<string, number>();
+  for (const q of passageQuestions ?? []) {
+    qCountByPassage.set(q.passage_id, (qCountByPassage.get(q.passage_id) ?? 0) + 1);
+  }
+  const passageById = new Map((studiedPassages ?? []).map((p: any) => [p.id, p]));
+  const studiedCards = topPassageIds
+    .map((id) => ({ passage: passageById.get(id), count: qCountByPassage.get(id) ?? 0 }))
+    .filter((c) => c.passage && c.count > 0);
+
   const err = searchParams?.err;
 
   return (
@@ -122,14 +172,11 @@ export default async function QuizHomePage({
         <div className="relative space-y-3">
           <div className="text-sm text-sky-100">🎯 유형 집중 훈련</div>
           <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
-            약점 유형을 짧은 사이클로 굳히기
+            읽은 지문으로 바로 문제 풀기
           </h1>
           <p className="text-sky-50 text-sm sm:text-base max-w-2xl">
-            객관식 10문제씩 빠르게 풀고 즉시 채점합니다. 오답에는
-            <b className="text-white"> 왜 그렇게 골랐는지</b>를 남겨야 다음 묶음으로 넘어가요.
-            <span className="block mt-1 text-sky-100">
-              ⓘ 단락 깊이 읽기 다음에 보조 훈련으로 쓸 때 효과가 큽니다.
-            </span>
+            기본은 <b className="text-white">방금 깊이 읽은 그 지문</b>의 문제입니다. 아래
+            카테고리 훈련은 여러 지문을 섞어서 푸는 심화용이에요.
           </p>
         </div>
       </div>
@@ -139,16 +186,13 @@ export default async function QuizHomePage({
 
       {/* 절차 안내 */}
       <div className="bg-sky-50 border border-sky-200 rounded-xl p-5 sm:p-6">
-        <div className="text-sm font-bold text-sky-900 mb-3">10문제 사이클은 어떻게 돌아가나요?</div>
+        <div className="text-sm font-bold text-sky-900 mb-3">어떻게 풀면 되나요?</div>
         <div className="space-y-2 text-sm text-gray-700">
-          <Step num={1} title="문제 풀이" desc="한 문제씩 답 1~4 중 선택. 그리고 왜 그 답을 골랐는지 한 줄 적기 (4자 이상)." />
-          <Step num={2} title="즉시 채점" desc="10번까지 다 풀면 자동 채점. 어떤 문제가 맞고 틀렸는지 바로 표시." />
-          <Step num={3} title="오답 정리" desc="오답마다 '왜 틀렸는지' 한 줄 필수 입력. 이걸 다 채워야 다음 10문제로 넘어가요." />
-          <Step num={4} title="약점 자동 추적" desc="카테고리별 정답률을 시스템이 자동 분석. 약한 유형은 다음 묶음에서 더 자주 등장합니다." />
+          <Step num={1} title="문제 풀이" desc="한 문제씩 답을 고르고 [다음 문제]. 왜 골랐는지도 적으면 좋아요(안 적어도 넘어감)." />
+          <Step num={2} title="즉시 채점" desc="다 풀면 자동 채점. 어떤 문제가 맞고 틀렸는지 바로 표시돼요." />
+          <Step num={3} title="오답 정리" desc="틀린 문제는 '왜 틀렸는지' 한 줄 적어두면 다음에 같은 실수를 덜 합니다." />
+          <Step num={4} title="약점 자동 추적" desc="카테고리별 정답률을 자동 분석해, 약한 유형이 더 자주 나옵니다." />
         </div>
-        <p className="text-xs text-sky-800 mt-3">
-          ⏱ 한 사이클 10~15분. 카테고리별 문제수가 풍부할수록 효과가 큽니다.
-        </p>
       </div>
 
       {/* 레벨 표시 바 */}
@@ -174,6 +218,42 @@ export default async function QuizHomePage({
       {err === "no_questions" && (
         <Alert>현재 단계에서 풀 수 있는 문제가 부족합니다. 선생님께 문제 추가를 요청하세요.</Alert>
       )}
+
+      {/* 내가 읽은 지문으로 풀기 — 기본 경로 */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">📖 내가 읽은 지문으로 풀기</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            깊이 읽기를 끝낸 지문에서 바로 문제를 풉니다. 새 지문을 다시 읽을 필요 없어요.
+          </p>
+        </div>
+        {studiedCards.length === 0 ? (
+          <div className="text-sm text-gray-500 bg-white border border-dashed rounded-xl py-8 text-center">
+            아직 깊이 읽기를 한 지문이 없어요.{" "}
+            <Link href="/learn/passages" className="text-brand-600 font-semibold">
+              단락 깊이 읽기부터 →
+            </Link>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {studiedCards.map(({ passage, count }) => (
+              <form key={passage.id} action="/api/quiz/start" method="post">
+                <input type="hidden" name="passageId" value={passage.id} />
+                <button
+                  type="submit"
+                  className="w-full h-full text-left rounded-2xl border bg-white p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
+                >
+                  <div className="text-xs text-gray-400 font-semibold mb-1">
+                    {count}문제 · 이 지문에서만
+                  </div>
+                  <div className="font-bold text-gray-900 leading-snug">{passage.title}</div>
+                  <div className="text-sm font-semibold text-brand-600 mt-3">풀러 가기 →</div>
+                </button>
+              </form>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* 약점 집중 모드 — 히어로 */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 via-brand-600 to-amber-600 text-white p-6 sm:p-8 shadow-lg">
@@ -223,7 +303,12 @@ export default async function QuizHomePage({
 
       {/* 카테고리 카드 */}
       <section className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900">카테고리 선택</h2>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">🎯 카테고리 훈련 (심화)</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            여러 지문에서 뽑은 10문제를 한 번에 풉니다. 지문이 매번 바뀌니 시간이 있을 때 하세요.
+          </p>
+        </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {ALL_TOPICS.map((t) => {
             const meta = TOPIC_META[t];

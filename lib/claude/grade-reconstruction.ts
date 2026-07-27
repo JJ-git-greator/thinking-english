@@ -1,4 +1,6 @@
 import { claude, MODELS } from "./client";
+import { dropFabricatedQuotes, hasFabricatedQuote } from "./sanitize";
+import { splitSentences } from "@/lib/text";
 
 export interface GradePayload {
   paragraphBody: string;       // 원문 (영어)
@@ -62,27 +64,45 @@ const SYSTEM_PROMPT = `역할: 한국 중·고등학생 영어 지문 이해 학
 - 오직 **이해·재구성 측면**에서만 코칭한다
 - 학생이 더 잘 할 수 있는 **이해의 방향**을 제시한다 (예: "단락의 두 번째 흐름까지 포함하면 의미가 더 완전해져요")
 
-피드백은 한국어로, 중·고등학생이 다음 시도에서 더 잘 할 수 있게 동기부여하는 톤으로. 모범 예시도 한국어, 학생 수준에서 따라할 만하게.
+**피드백 문장 규칙 (읽는 사람이 중학생이다. 반드시 지켜라)**
+- 각 항목은 **한 문장**, **40자 이내**. 두 문장으로 늘리지 마라.
+- strengths 최대 2개, weaknesses 최대 2개, suggestions 최대 2개. 더 쓰지 마라.
+- 중학생이 아는 쉬운 말만 쓴다. "구체적 배경", "논리 흐름이 단편적", "재구성하려 시도했다" 같은
+  딱딱한 표현 금지. "~을 잘 잡았어요", "~를 빠뜨렸어요", "~까지 넣어보세요"처럼 말한다.
+- 한 항목에 여러 지적을 붙이지 마라. 하나에 하나만.
+- **원문의 영어 문장을 인용하지 마라.** 영어를 큰따옴표로 옮겨 적는 것도 금지.
+  학생은 채점 전까지 원문을 못 본 상태라, 영어를 인용하면 "그런 문장 없는데요?"가 된다.
+  위치는 사용자 메시지에 붙은 문장 번호로만 가리킨다 ("세 번째 문장에 나오는 결론").
+- 원문에 없는 영어 문장을 지어내는 것은 **최악의 오류**다. 절대 하지 마라.
+- rewritten_example(모범 예시)은 한국어 **3문장 이내**, 중학생이 따라 쓸 수 있는 길이로.
 
 출력 형식: 오직 JSON 한 덩어리. 다른 텍스트 없이.
 {
   "score": 0-100 정수,
   "subscores": { "main": 0-25, "support": 0-25, "flow": 0-25, "expression": 0-25 },
-  "strengths": ["...", "..."],
-  "weaknesses": ["...", "..."],
-  "suggestions": ["...", "..."],
-  "rewritten_example": "한국어 모범 예시 한 단락"
+  "strengths": ["한 문장 40자 이내", "..."],
+  "weaknesses": ["한 문장 40자 이내", "..."],
+  "suggestions": ["한 문장 40자 이내", "..."],
+  "rewritten_example": "한국어 3문장 이내"
 }`;
 
 export async function gradeReconstruction(p: GradePayload): Promise<GradeResult> {
   const modelId = p.preferSmart ? MODELS.smart : MODELS.cheap;
   const client = claude();
 
+  // 문장에 번호를 붙여 준다 — 피드백이 영어를 인용하지 않고 "두 번째 문장"으로 가리킬 수 있게
+  const numbered = splitSentences(p.paragraphBody)
+    .map((s, i) => `${i + 1}) ${s.text}`)
+    .join("\n");
+
   const userText = [
     "원문 단락 (영어):",
     '"""',
     p.paragraphBody,
     '"""',
+    "",
+    "원문 문장 번호 (피드백에서 위치를 가리킬 때 이 번호로만 말할 것):",
+    numbered,
     "",
     "학생이 골라낸 두 문장:",
     `- 메인 아이디어: "${p.mainIdea}"`,
@@ -115,7 +135,19 @@ export async function gradeReconstruction(p: GradePayload): Promise<GradeResult>
     .trim();
 
   const parsed = extractJson(raw);
-  return { ...parsed, model: modelId };
+
+  // 원문에 없는 영어 문장을 인용한 줄은 학생에게 보여주지 않는다 (환각 방어)
+  const clean = {
+    ...parsed,
+    strengths: dropFabricatedQuotes(parsed.strengths, p.paragraphBody).slice(0, 2),
+    weaknesses: dropFabricatedQuotes(parsed.weaknesses, p.paragraphBody).slice(0, 2),
+    suggestions: dropFabricatedQuotes(parsed.suggestions, p.paragraphBody).slice(0, 2),
+    rewritten_example: hasFabricatedQuote(parsed.rewritten_example, p.paragraphBody)
+      ? ""
+      : parsed.rewritten_example,
+  };
+
+  return { ...clean, model: modelId };
 }
 
 function extractJson(s: string): Omit<GradeResult, "model"> {

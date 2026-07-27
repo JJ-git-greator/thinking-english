@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ReconstructWorkspace from "./ReconstructWorkspace";
+import StepNav from "@/components/StepNav";
+import { getParagraphFlow, resolveNeighbors } from "@/lib/paragraph-steps";
 
 export default async function ReconstructPage({
   params,
@@ -45,8 +47,11 @@ export default async function ReconstructPage({
     ? paragraph.te_passages[0]
     : paragraph.te_passages;
 
+  const flow = await getParagraphFlow(supabase, paragraph.id, userId);
+  const neighbors = flow ? resolveNeighbors(flow, "reconstruct") : null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href={`/learn/passages/${passage?.id}`}
         className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
@@ -54,16 +59,11 @@ export default async function ReconstructPage({
         ← {passage?.title}
       </Link>
 
+      {flow && <StepNav flow={flow} current="reconstruct" position="top" />}
+
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 sm:p-7 shadow-md">
-        <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
-          <div className="text-xs font-semibold text-blue-50">📖 단락 깊이 읽기 · 3/3단계 (재구성)</div>
-          <div className="hidden sm:flex items-center gap-1 text-xs text-white/80">
-            <span className="px-2 py-0.5 rounded-full bg-white/10">1회독 ✓</span>
-            <span>→</span>
-            <span className="px-2 py-0.5 rounded-full bg-white/10">2회독 ✓</span>
-            <span>→</span>
-            <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">3회독</span>
-          </div>
+        <div className="text-xs font-semibold text-blue-50 mb-1">
+          🧠 한국어로 재구성
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
           단락 {paragraph.ord + 1} — 핵심에서 전체로
@@ -84,7 +84,11 @@ export default async function ReconstructPage({
           supporting: gist.supporting_text!,
         }}
         latest={latest}
+        nextHref={neighbors?.next.href ?? `/learn/passages/${passage?.id}`}
+        nextLabel={neighbors?.next.label ?? "지문 화면으로"}
       />
+
+      {flow && <StepNav flow={flow} current="reconstruct" />}
     </div>
   );
 }

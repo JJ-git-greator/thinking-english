@@ -18,6 +18,9 @@ interface Item {
 
 interface Props {
   items: Item[];
+  /** 단락 학습 흐름 안에서 열렸을 때, 다음 단계로 바로 보내기 */
+  nextHref?: string | null;
+  nextLabel?: string | null;
 }
 
 interface Result {
@@ -27,7 +30,7 @@ interface Result {
   elapsedMs: number;
 }
 
-export default function PlayWorkspace({ items }: Props) {
+export default function PlayWorkspace({ items, nextHref = null, nextLabel = null }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [idx, setIdx] = useState(0);
@@ -70,16 +73,25 @@ export default function PlayWorkspace({ items }: Props) {
         <div className="grid sm:grid-cols-2 gap-3">
           <button
             onClick={() => router.refresh()}
-            className="px-5 py-3 rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700 active:scale-[0.99] transition"
+            className="px-5 py-3 rounded-lg border-2 border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-50 active:scale-[0.99] transition"
           >
-            새 문장으로 다시
+            ↺ 다시 하기
           </button>
-          <Link
-            href="/learn/sv"
-            className="text-center px-5 py-3 rounded-lg bg-gray-100 text-gray-800 font-semibold hover:bg-gray-200 active:scale-[0.99] transition"
-          >
-            메뉴로 돌아가기
-          </Link>
+          {nextHref ? (
+            <Link
+              href={nextHref}
+              className="text-center px-5 py-3 rounded-lg bg-brand-600 text-white font-bold hover:bg-brand-700 active:scale-[0.99] transition"
+            >
+              다음: {nextLabel} →
+            </Link>
+          ) : (
+            <Link
+              href="/learn/sv"
+              className="text-center px-5 py-3 rounded-lg bg-gray-100 text-gray-800 font-semibold hover:bg-gray-200 active:scale-[0.99] transition"
+            >
+              메뉴로 돌아가기
+            </Link>
+          )}
         </div>
       </div>
     );

@@ -65,6 +65,14 @@ export default async function PassageDetailPage({
     .in("paragraph_id", paragraphIds);
   const hasChunkByPara = new Set<string>((chunkRows ?? []).map((r) => r.paragraph_id));
 
+  // 주어·동사 문장 / 이 지문 문제 존재 여부
+  const [{ data: svRows }, { data: questionRows }] = await Promise.all([
+    supabase.from("te_sv_drill_sentences").select("id").eq("passage_id", passage.id),
+    supabase.from("te_questions").select("id").eq("passage_id", passage.id),
+  ]);
+  const hasSv = (svRows ?? []).length > 0;
+  const questionCount = (questionRows ?? []).length;
+
   const totalPara = te_paragraphs.length || 1;
   const pass1Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasGist).length;
   const pass2Done = te_paragraphs.filter((p: any) => notesByPara.get(p.id)?.hasStructure).length;
@@ -116,18 +124,18 @@ export default async function PassageDetailPage({
       {/* 3회독 진척 */}
       <div className="bg-white border rounded-xl p-5 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-800">3회독 진척</h2>
+          <h2 className="text-base font-semibold text-gray-800">진척</h2>
           <span className="text-xs text-gray-500">단락 {totalPara}개</span>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <RoundCell label="1회독 · Gist" done={pass1Done} total={totalPara} color="bg-amber-500" />
+          <RoundCell label="핵심 문장" done={pass1Done} total={totalPara} color="bg-amber-500" />
           <RoundCell
-            label="2회독 · Structure"
+            label="문장 구조"
             done={pass2Done}
             total={totalPara}
             color="bg-sky-500"
           />
-          <RoundCell label="3회독 · 재구성" done={pass3Done} total={totalPara} color="bg-blue-600" />
+          <RoundCell label="재구성" done={pass3Done} total={totalPara} color="bg-blue-600" />
         </div>
       </div>
 
@@ -168,7 +176,7 @@ export default async function PassageDetailPage({
                   {p.body}
                 </p>
 
-                {/* 버튼 */}
+                {/* 버튼 — 학습 순서대로 */}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Link
                     href={`/learn/paragraphs/${p.id}/gist`}
@@ -178,8 +186,16 @@ export default async function PassageDetailPage({
                         : "bg-amber-500 text-white hover:bg-amber-600"
                     }`}
                   >
-                    {hasGist ? "✓ 1회독 다시" : "1회독 시작"}
+                    {hasGist ? "✓ 1 핵심 문장" : "1 핵심 문장 찾기"}
                   </Link>
+                  {hasGist && hasSv && (
+                    <Link
+                      href={`/learn/sv/play?passage=${passage.id}&from=${p.id}`}
+                      className="inline-flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-lg font-semibold bg-orange-500 text-white hover:bg-orange-600 transition"
+                    >
+                      🔎 주어·동사
+                    </Link>
+                  )}
                   {hasGist && hasChunks && (
                     <Link
                       href={`/learn/chunks/${p.id}`}
@@ -197,7 +213,7 @@ export default async function PassageDetailPage({
                           : "bg-sky-500 text-white hover:bg-sky-600"
                       }`}
                     >
-                      {hasStructure ? "✓ 2회독 다시" : "2회독"}
+                      {hasStructure ? "✓ 문장 구조" : "🧱 문장 구조"}
                     </Link>
                   )}
                   {hasGist && (
@@ -209,7 +225,7 @@ export default async function PassageDetailPage({
                           : "bg-blue-600 text-white hover:bg-blue-700"
                       }`}
                     >
-                      {hasRecon ? "✓ 3회독 다시" : "3회독"}
+                      {hasRecon ? "✓ 재구성" : "🧠 재구성"}
                     </Link>
                   )}
                 </div>
@@ -218,6 +234,20 @@ export default async function PassageDetailPage({
           );
         })}
       </div>
+
+      {/* 마지막 단계 — 이 지문으로 문제 풀기 */}
+      {questionCount > 0 && (
+        <Link
+          href={`/learn/passages/${passage.id}/quiz`}
+          className="block rounded-2xl bg-gradient-to-r from-sky-500 to-blue-700 text-white p-6 shadow-md hover:shadow-lg active:scale-[0.99] transition"
+        >
+          <div className="text-xs font-semibold text-sky-100 mb-1">🎯 마지막 단계</div>
+          <div className="text-xl font-bold">이 지문 문제 {questionCount}개 풀기 →</div>
+          <p className="text-sky-50 text-sm mt-1">
+            새 지문이 아니라, 방금 읽은 이 지문에서 나온 문제만 풉니다.
+          </p>
+        </Link>
+      )}
     </div>
   );
 }

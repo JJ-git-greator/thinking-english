@@ -26,6 +26,8 @@ interface Props {
   paragraphBody: string;
   passageId: string;
   questions: Question[];
+  nextHref: string;
+  nextLabel: string;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -45,6 +47,8 @@ export default function StructureWorkspace({
   paragraphBody,
   passageId,
   questions: initial,
+  nextHref,
+  nextLabel,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -54,15 +58,15 @@ export default function StructureWorkspace({
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center space-y-2">
         <div className="text-4xl">📝</div>
-        <p className="text-gray-700 font-semibold">아직 이 단락의 Structure 문제가 준비되지 않았어요.</p>
+        <p className="text-gray-700 font-semibold">아직 이 단락의 구조 문제가 준비되지 않았어요.</p>
         <p className="text-sm text-gray-500">
-          선생님이 추가하면 여기에 객관식이 표시됩니다. 일단 3회독으로 넘어가도 괜찮아요.
+          선생님이 추가하면 여기에 객관식이 표시됩니다. 일단 다음 단계로 넘어가도 괜찮아요.
         </p>
         <button
-          onClick={() => router.push(`/learn/paragraphs/${paragraphId}/reconstruct`)}
+          onClick={() => router.push(nextHref)}
           className="mt-3 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
         >
-          3회독 (재구성)으로 →
+          {nextLabel} →
         </button>
       </div>
     );
@@ -99,13 +103,16 @@ export default function StructureWorkspace({
             key={q.id}
             question={q}
             onAnswered={(chosenAnswer, isCorrect) => {
-              setQuestions((prev) =>
-                prev.map((x) =>
+              setQuestions((prev) => {
+                const next = prev.map((x) =>
                   x.id === q.id
                     ? { ...x, last: { chosen_answer: chosenAnswer, is_correct: isCorrect } }
                     : x,
-                ),
-              );
+                );
+                // 이 단락 구조 문제를 다 풀면 진척(2회독 완료)을 기록한다
+                if (next.every((x) => !!x.last)) void markStructureDone(supabase, paragraphId);
+                return next;
+              });
             }}
             supabase={supabase}
             paragraphId={paragraphId}
@@ -116,22 +123,37 @@ export default function StructureWorkspace({
       {/* 끝나면 다음으로 */}
       {allAnswered && (
         <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl p-5 sm:p-6 space-y-3">
-          <div className="text-sm text-sky-700 font-semibold">2회독 완료 🎉</div>
+          <div className="text-sm text-sky-700 font-semibold">문장 구조 점검 완료 🎉</div>
           <p className="text-gray-700">
             {correctCount === questions.length
               ? "모두 맞췄어요! 단락 구조가 머릿속에 잘 박혔어요."
               : `${questions.length}문제 중 ${correctCount}개 맞췄어요. 틀린 문제는 해설을 다시 한 번 보고 가세요.`}
           </p>
           <button
-            onClick={() => router.push(`/learn/paragraphs/${paragraphId}/reconstruct`)}
+            onClick={() => router.push(nextHref)}
             className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700"
           >
-            3회독 (재구성)으로 →
+            다음: {nextLabel} →
           </button>
         </div>
       )}
     </div>
   );
+}
+
+/** 단락 구조 문제를 모두 풀면 te_gist_notes.structure_done_at 을 찍어 진척에 반영 */
+async function markStructureDone(
+  supabase: ReturnType<typeof createClient>,
+  paragraphId: string,
+) {
+  const { data: userResp } = await supabase.auth.getUser();
+  if (!userResp.user) return;
+  await supabase
+    .from("te_gist_notes")
+    .update({ structure_done_at: new Date().toISOString() })
+    .eq("user_id", userResp.user.id)
+    .eq("paragraph_id", paragraphId)
+    .is("structure_done_at", null);
 }
 
 function QuestionCard({

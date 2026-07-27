@@ -1,4 +1,5 @@
 import { claude, MODELS } from "./client";
+import { hasFabricatedQuote, verbatimOrNull } from "./sanitize";
 
 export interface GistGradePayload {
   paragraphBody: string;
@@ -55,6 +56,14 @@ const SYSTEM_PROMPT = `역할: 한국 중·고등학생 영어 지문 이해 학
 - "이게 틀렸어요"가 아니라 "이 문장도 좋지만, ~ 문장이 더 핵심에 가까워요" 톤
 - next_step: 다음 단락에서 학생이 더 잘 할 수 있는 사고 방향 한 줄
 
+**피드백 문장 규칙 (읽는 사람이 중학생이다. 반드시 지켜라)**
+- feedback의 각 항목과 next_step은 **한 문장, 40자 이내**. 길게 늘여 쓰지 마라.
+- 중학생이 아는 쉬운 말만. 딱딱한 학술 표현 금지.
+- better_main / better_supporting 은 **원문 단락에 실제로 있는 문장을 글자 그대로** 복사해서 넣는다.
+  기억으로 다시 쓰거나, 요약하거나, 단어를 바꾸지 마라. 마땅한 후보가 없으면 필드를 아예 빼라.
+- 그 외 문장에서는 원문 영어를 인용하지 마라. 위치는 한국어로만 가리킨다 ("마지막 문장").
+- 원문에 없는 영어 문장을 지어내는 것은 **최악의 오류**다.
+
 출력 형식: 오직 JSON 한 덩어리. 다른 텍스트 없이.
 {
   "overall": 0-100 정수,
@@ -108,7 +117,28 @@ export async function gradeGist(p: GistGradePayload): Promise<GistGradeResult> {
     .join("")
     .trim();
 
-  return { ...extractJson(raw), model: modelId };
+  const parsed = extractJson(raw);
+
+  // 환각 방어 — 원문에 없는 영어 인용은 버린다
+  const body = p.paragraphBody;
+  const clean: Omit<GistGradeResult, "model"> = {
+    ...parsed,
+    feedback: {
+      main: hasFabricatedQuote(parsed.feedback.main, body) ? "" : parsed.feedback.main,
+      supporting: hasFabricatedQuote(parsed.feedback.supporting, body)
+        ? ""
+        : parsed.feedback.supporting,
+      reasoning:
+        parsed.feedback.reasoning && hasFabricatedQuote(parsed.feedback.reasoning, body)
+          ? undefined
+          : parsed.feedback.reasoning,
+      better_main: verbatimOrNull(parsed.feedback.better_main, body),
+      better_supporting: verbatimOrNull(parsed.feedback.better_supporting, body),
+    },
+    next_step: hasFabricatedQuote(parsed.next_step, body) ? "" : parsed.next_step,
+  };
+
+  return { ...clean, model: modelId };
 }
 
 function extractJson(s: string): Omit<GistGradeResult, "model"> {

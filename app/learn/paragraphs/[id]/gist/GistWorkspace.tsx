@@ -33,9 +33,17 @@ interface Props {
     supporting_reasoning?: string | null;
     ai_evaluation?: Evaluation | null;
   } | null;
+  nextHref: string;
+  nextLabel: string;
 }
 
-export default function GistWorkspace({ paragraphId, body, initial }: Props) {
+export default function GistWorkspace({
+  paragraphId,
+  body,
+  initial,
+  nextHref,
+  nextLabel,
+}: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [selection, setSelection] = useState<GistSelection>({
@@ -190,10 +198,10 @@ export default function GistWorkspace({ paragraphId, body, initial }: Props) {
 
         {canSave && (savedAt || evaluation) && (
           <button
-            onClick={() => router.push(`/learn/paragraphs/${paragraphId}/structure`)}
-            className="px-5 py-2.5 rounded-md border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+            onClick={() => router.push(nextHref)}
+            className="px-5 py-2.5 rounded-md bg-brand-600 text-white font-semibold hover:bg-brand-700"
           >
-            2회독 (Structure)으로 →
+            다음: {nextLabel} →
           </button>
         )}
 
